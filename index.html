@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Einkauf</title>
+    <link rel="icon" type="image/png" href="bilder/shopping64.png">
+    <link rel="stylesheet" href="css/einkauf.css">
+    <script src="js/einkauf.js"></script>
+</head>
+<body>
+  <!-- kleines Projekt fuer eine Einkaufsliste 
+        Überlegung war, es mit SuS zu machen, aber das wird nicht funktionieren :-(
+        besser: mit websockets umsetzen, dann könnte man auf zeitgleich geaenderte items reagieren
+        so ist es zuviel Aufwand - ich könnte die alte Liste mitsenden und eine Warnung setzen
+        alternativ: der Server könnte sich die ip der Änderung merken und eine neue Liste schicken, falls 
+        die ip nicht mit der der  letzten Änderung nicht übereinstimmt - ja scheint mir sinnvoll, dann ist die Liste
+        aktuell wenn man einkaufen geht - zu Hause sitzt man aber hinter einem Router und dann wird die ip-adresse kein 
+        Kriterium sein. Also ist es besser ein Token für den Client zu erzeugen und dieses abzuspeichern 
+        damit ließe sich auch verhindern, dass "Fremde" auf die Liste zu greifen 
+      -->
+  <div id="error" class="hidden">
+    Probleme: <span id="errorText"></span>
+    <button id="berrorOk"> ok </button>
+  </div>
+  <div id="info" class="hidden">
+    Info: <span id="infoText"></span>
+    <button id="binfoOk"> ok </button>
+  </div>
+  <form id="fSettings" class="hidden">
+    <!-- ueber fremden Server nach gedacht, aber das duerfte Aerger mit same origin geben?
+      <div><label for="iServer">Server:</label><input placeholder="https://xyz" id="iServer" type="text"></div>
+    -->
+    <!-- fsettings div ist flex container -->
+      <div><label for="iDatei">Datei:</label><input id="iDatei" placeholder = "data/file.csv" type="text"></div>
+      <div><label id="liSave" for="iSaveDirect">jede Aktion speichern: <input  id="iSaveDirect" type="checkbox" checked></label></div>
+      <div><label for="iToken">Token:</label><input id="iToken" type="text" readonly> (nicht editierbar)</div>
+      <div> <button type="button" id="bsCancel"> Cancel </button>
+      <button type="button" id="bsClear"> Clear Local </button> <!-- manchmal im Entwicklungsprozess sinnvoll-->
+      <button type="button" id="bsSave"> Save </button></div>
+      <div><div class="center">(Clear Local i.d. Regel unnötig)</div></div>
+  </form>
+  <main>
+    <h1>Einkauf
+        <button type="button" id="bSettings">conf</button>
+        <button type="button" id="bSave">save</button>
+        <button type="button" id="bReload">reload</button></h1>
+    <!-- hidden Form fuer die Settings-->
+    <form>
+        <input id="iAddTopic" type="text">
+        <button type="button" id="bAdd">Add</button>
+    </form>
+    <ul id="list">
+        <li>
+          <div>
+            <label> <input type="checkbox"> <span>First Entry Placeholder</span></label> <span class="lifted">&#128465;</span>
+          </div>
+        </li>
+        <li>
+            <div>
+              <label> <input type="checkbox" checked> <span>Second Entry Placeholder</span></label> <span class="lifted">&#128465;</span>
+            </div>
+          </li>
+    </ul>
+  </main>
+</body>
+</html>
