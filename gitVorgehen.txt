@@ -1,0 +1,60 @@
+Da ich es immer vergesse ... und Git schon ewig nicht genutzt habe. 
+
+Habe das Projekt soweit erstellt.
+git init
+
+in .gitignore: 
+
+data/*
+!data/readme.txt
+*~
+.vs/
+
+
+Meine globalen Daten waren weg, ich weiß nicht mehr, wie ich es früher
+gemacht habe, jedenfalls: 
+
+ git config --global user.name "Roemke"
+ git config --global user.email k.roemke@googlemail.com
+ git status
+
+ist sicher ganz sinnvoll
+
+git add *
+
+git commit 
+
+git config --global user.password xyz (ob das noetig ist weiss ich nicht9
+
+less ~/.ssh/id_rsa.pub  -> bei github im profil unter ssh und gpg keys eingetragen
+
+git remote add origin ssh://github.com/Roemke/einkauf
+git remote set-url origin git@github.com:roemke/einkauf.git
+
+git push --set-upstream origin master
+
+git push
+
+damit habe ich neben main noch master auf github in den branches
+
+In den Settings den default branch auf master gesetzt und dann main entfernt - na ob das sinnvoll ist
+
+geplant - speichern dieser Datei gitVorgehen.txt 
+git add .vscode
+git add .gitignore
+
+git add -A 
+Danach erhalte ich bei git status
+Auf Branch master
+Ihr Branch ist auf demselben Stand wie 'origin/master'.
+
+Zum Commit vorgemerkte Änderungen:
+  (benutzen Sie "git restore --staged <Datei>..." zum Entfernen aus der Staging-Area)
+	neue Datei:     .gitignore
+	neue Datei:     .vscode/settings.json
+	neue Datei:     gitVorgehen.txt
+
+
+git commit
+und git push
+  
