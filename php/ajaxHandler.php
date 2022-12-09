@@ -32,6 +32,12 @@
 
 	  	function __construct($fileName,$token)
       	{
+			//filename auf Endung .csv prüfen
+			$end = substr($fileName,-4);
+			if (strcasecmp($end,".csv") !== 0)
+			{
+				$fileName .= ".csv";
+			}
 			$this->fileName = dirname(__FILE__,2) .'/'. $fileName;
 			//error_log("Filename ist " . $this->fileName);
 			$this->token = $token;
@@ -68,7 +74,7 @@
 				'infoText' => $this->infoText,
 				'state' => $this->state,
 				'token' => $this->token
-			]; //nur ein subset zurueck geben 
+			]; //nur ein subset zurueck geben
 		}
 		public function saveData($entries)
 		{  //as csv to fileName
@@ -215,7 +221,7 @@
 				$result->infoText = $e->getMessage();
 			}
 		}
-        return json_encode($result); 
+        return json_encode($result);
     }
 
 	//get the parameter
@@ -229,7 +235,7 @@
 	$token = isset($data['token']) ? $data['token'] : "";
     $entries = isset($data['data']) ? $data['data'] : "";
     $result = evaluateRequest($action,$file,$entries,$token);
-	//sleep(2); //timeout simulieren 
+	//sleep(2); //timeout simulieren
     echo $result;
  ?>
 
