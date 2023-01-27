@@ -1,5 +1,8 @@
 //Erst diverse Funktionen "main" unten - wenn window das load Event auslöst
-
+/*
+   2023-01-27: sort eingebaut, dabei aufgefallen save der konfiguration klappt nicht ganz, Meldung keine Aenderung
+   und die tokengeschichte am Anfang klappt nicht 
+*/
 const programm = "php/ajaxHandler.php";
 
 //Funktionen Liste
@@ -444,13 +447,15 @@ function addSettingsListener()
 
 }
 
-//Standard Eventlistener fuer buttons etc 
 
+
+//Standard Eventlistener fuer buttons etc 
 function addStandardListener()
 {
     let bSave = document.getElementById("bSave");
     let bAdd = document.getElementById("bAdd");
     let bReload = document.getElementById("bReload");
+    let bSort = document.getElementById("bSort");
     let iAddTopic = document.getElementById("iAddTopic");
 
     //unnoetige event-Listener
@@ -522,6 +527,44 @@ function addStandardListener()
             writeEntriesToServer();
             emphSaveRemove();
         }
+    });
+    bSort.addEventListener("click",e => {
+    	  e.preventDefault();
+    	  //liste abrufen 
+    	  const entries = document.querySelectorAll("#list li label");
+    	  //erstelle zwei listen, eine mit den nicht markierten und eine mit den markierten also erledigten
+    	  const todoEntries = [];
+    	  const doneEntries = [];
+    	  entries.forEach(el => {
+    	  	if (el.childNodes[0].checked == false)
+    	  	{ 
+    	  		//console.log("find " + el.childNodes[1].innerText + " unchecked");
+    	  		todoEntries.push(new Array(0,el.childNodes[1].innerText));
+    	  	}
+    	  	else
+    	  	{
+    	  		doneEntries.push(new Array(1,el.childNodes[1].innerText));
+    	  	}    	  	
+    	  });
+    	  //sortieren 
+    	  todoEntries.sort( (a,b) => {
+    	    a = a[1].toLowerCase();
+    	    b = b[1].toLowerCase();
+    	  	return a.localeCompare(b);
+    	  });
+    	  doneEntries.sort( (a,b) => {
+    	    a = a[1].toLowerCase();
+    	    b = b[1].toLowerCase();
+    	  	return a.localeCompare(b);
+    	  });     	  
+    	  fillList(todoEntries.concat(doneEntries));
+    	  emphSave();
+        if(localStorage.getItem("saveDirect")==="true") //texte in localstorage
+        {
+            writeEntriesToServer();
+            emphSaveRemove();
+        }
+
     });
 }
 
