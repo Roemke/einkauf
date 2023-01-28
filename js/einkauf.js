@@ -1,12 +1,23 @@
 //Erst diverse Funktionen "main" unten - wenn window das load Event auslöst
 /*
    2023-01-27: sort eingebaut, dabei aufgefallen save der konfiguration klappt nicht ganz, Meldung keine Aenderung
-   und die tokengeschichte am Anfang klappt nicht 
+   und die tokengeschichte am Anfang klappt nicht nochmal anschauen
+
+   2023-01-28: wenn Zeit ist, dann mal mit drag and drop spielen
+   https://htmldom.dev/drag-and-drop-element-in-a-list/ - ohne draggable type, etwas aufwendiger
+   https://web.dev/drag-and-drop/ - mit draggable, nicht ganz so net
+   vielleicht ein Mix
 */
 const programm = "php/ajaxHandler.php";
 
+//aus js nachladen ist komplizierter:
+/*
+var dragScript =  document.createElement('script');
+dragScript.type = 'text/javascript'; //ist das noetig?
+dragScript.src = 'js/draggable.js';
+document.head.appendChild(dragScript);
+*/
 //Funktionen Liste
-
 function addEntry(checked, text, end=true)
 {
      /* Aufbau ist:
@@ -238,9 +249,9 @@ async function registerToken(token,datei)
     }).catch(response => { //netzwerk fehler / timeout oder Fehler wg not ok (Status != 200 ?
       evaluateNetworkError(response,"registerToken");
       return false;
-    }); 
-    return response; //async gibt promise zurueck, aber ich denke mit true / false geht es 
-    /* erste überlegung, lasse ich "fuer mich" mal drin 
+    });
+    return response; //async gibt promise zurueck, aber ich denke mit true / false geht es
+    /* erste überlegung, lasse ich "fuer mich" mal drin
       return fetch(programm,{
         method: 'POST',
         headers: {
@@ -249,7 +260,7 @@ async function registerToken(token,datei)
         body: JSON.stringify(postData) //fetch liefert promise zurueck
     }).then(response => response.json())//short form of (response) => {return response.json()}
     */
-    /*test - 
+    /*test -
     unten ist result definiert, aber das return geht zum nächsten then (da result ein promise ist) aber ich gebe das 
     Objekt nicht zurück, daher oben return vor fetch
     .then( response =>
@@ -257,7 +268,7 @@ async function registerToken(token,datei)
             console.log(response);
             let result = response.json();
             return result
-        }) 
+        })
     */
 }
 //async functions - Netzwerk
@@ -268,7 +279,7 @@ async function getEntriesFromServer()
     let datei = localStorage.getItem("datei")//+ "x"; //+x ->fehler einbauen
     let postData = {action: 'loadData', datei: datei, data: "",token: token};
 
-    const response = await fetchWithTimeout(programm //+ "x" //+x fehler einbauen 
+    const response = await fetchWithTimeout(programm //+ "x" //+x fehler einbauen
       ,{
         method: 'POST',
         timeout: 6000,
@@ -456,6 +467,7 @@ function addStandardListener()
     let bAdd = document.getElementById("bAdd");
     let bReload = document.getElementById("bReload");
     let bSort = document.getElementById("bSort");
+    const bDrag = document.getElementById("bDrag"); //eigentlich koennte alles const sein
     let iAddTopic = document.getElementById("iAddTopic");
 
     //unnoetige event-Listener
@@ -556,7 +568,7 @@ function addStandardListener()
     	    a = a[1].toLowerCase();
     	    b = b[1].toLowerCase();
     	  	return a.localeCompare(b);
-    	  });     	  
+    	  });
     	  fillList(todoEntries.concat(doneEntries));
     	  emphSave();
         if(localStorage.getItem("saveDirect")==="true") //texte in localstorage
@@ -565,6 +577,25 @@ function addStandardListener()
             emphSaveRemove();
         }
 
+    });
+    bDrag.addEventListener("click",e => {
+        e.preventDefault();
+        //liste abrufen 
+        const entries = document.querySelectorAll("#list li");
+        //erstelle zwei listen, eine mit den nicht markierten und eine mit den markierten also erledigten
+        const todoEntries = [];
+        const doneEntries = [];
+        entries.forEach(el => {
+            if (el.childNodes[0].childNodes[0].checked == false)
+            {
+                console.log("find " + el.childNodes[1].innerText + " unchecked");
+                todoEntries.push(el);
+            }
+            else
+            {
+                doneEntries.push(el);
+            }
+        });
     });
 }
 
