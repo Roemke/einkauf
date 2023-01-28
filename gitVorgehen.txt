@@ -57,4 +57,11 @@ Zum Commit vorgemerkte Änderungen:
 
 git commit
 und git push
+
+paar aenderungen und git commit -a / git push 
+dann groesserer Versuch drag hinzufuegen 
+git checkout -b withoutDrag 
+git push --set-upstream origin withoutDrag
+
+erzeuge auch einen withDrag -> 3 branches mal sehen wie weiter 
   
