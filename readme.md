@@ -15,3 +15,5 @@ Zu jedem Zugriff wird neben dem Token auch der Zeitpunkt des letzten Speicherns 
 
 Für meine Hobby-Liste reicht das aus.
 
+## Erweiterungen
+2023-01-27: Baue eine Sortiermöglichkeit ein, die Liste wird doch länger und man findet die Dinge, die schon da sind, eher schlecht wieder.
