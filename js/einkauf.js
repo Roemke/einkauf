@@ -12,7 +12,7 @@ function addEntry(checked, text, end=true)
      /* Aufbau ist:
         <li>
           <div>
-            <label> <input type="checkbox"> <span>First Entry</span></label> <span class="lifted">&#128465;</span>
+            <label> <input type="checkbox"> <span>First Entry</span></label> <span class="waste">&#128465;</span>
           </div>
         </li>
         */
@@ -64,7 +64,7 @@ function addEntry(checked, text, end=true)
     //und zusammen bauen
     span1.appendChild(document.createTextNode(text));
     span2.innerHTML = "&#128465;";
-    span2.classList.add("lifted");
+    span2.classList.add("waste");
     span2.addEventListener("click", event => {
         let liste = document.getElementById("list"); //falls sich liste geändert hat
         let li = event.currentTarget.parentNode.parentNode;
@@ -286,7 +286,7 @@ async function getEntriesFromServer()
             return Promise.reject(jsonProm);
         }
         fillList(jsonProm.entries);//alles klar
-        console.log(jsonProm);
+        //console.log(jsonProm);
     }).catch(response => { //netzwerk fehler / timeout oder Fehler wg not ok (Status != 200 ?
         evaluateNetworkError(response,"load");
     });
@@ -460,7 +460,7 @@ function addStandardListener()
 
     //unnoetige event-Listener
     //folgendes wird im realen Einsatz nicht noetig sein, da ich den eventlistener beim dynamischen einfuegen der Elemente anhaenge
-    let listEntries = document.querySelectorAll("span.lifted");
+    let listEntries = document.querySelectorAll("span.waste");
     let liste = document.getElementById("list");
     listEntries.forEach(element => {
         element.addEventListener("click", event => {

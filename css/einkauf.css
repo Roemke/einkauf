@@ -82,13 +82,6 @@ ul {
     margin-left: auto;
     margin-right: auto;
 }
-.lifted, input[type=checkbox] { 
-    position: relative;
-    bottom: .1em; /* this is a better value for different fonts! */
-  }
-  input[type=checkbox]{
-    margin: 0.0rem 1rem 0.6rem 0rem; /*top right bottom left */
-  }
 
 :checked  + span{ /*first span after checked input */
     color: grey;
@@ -128,9 +121,12 @@ ul {
 input[type="checkbox"]
 {
     transform: scale(1.5); /*scale ist guenstiger, da die Beschriftung besser aussieht */
+    margin-right: 1rem;
     -webkit-transform: scale(1.5); /*die hat vs code hinzugefügt */
     -moz-transform: scale(1.5);
     -ms-transform: scale(1.5);
     -o-transform: scale(1.5);
 }
-
+label {
+    margin-top: 0.3rem; /*verstehe ich nicht, der label mit der inputbox klebt oben an der umgebenden Box, dass ist ein div */
+}
