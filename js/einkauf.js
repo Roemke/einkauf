@@ -3,21 +3,35 @@
    2023-01-27: sort eingebaut, dabei aufgefallen save der konfiguration klappt nicht ganz, Meldung keine Aenderung
    und die tokengeschichte am Anfang klappt nicht nochmal anschauen
 
-   2023-01-28: wenn Zeit ist, dann mal mit drag and drop spielen
-   https://htmldom.dev/drag-and-drop-element-in-a-list/ - ohne draggable type, etwas aufwendiger
-   https://web.dev/drag-and-drop/ - mit draggable, nicht ganz so net
-   vielleicht ein Mix
+   2023-01-28: wenn Zeit ist, dann mal mit drag and drop spielen, s. klasse draggable.js
 */
 const programm = "php/ajaxHandler.php";
 
 //aus js nachladen ist komplizierter:
-/*
+
 var dragScript =  document.createElement('script');
 dragScript.type = 'text/javascript'; //ist das noetig?
 dragScript.src = 'js/draggable.js';
 document.head.appendChild(dragScript);
-*/
+
 //Funktionen Liste
+function inputChangeListener(e)
+{
+    let li = e.currentTarget.parentNode.parentNode.parentNode;
+    if (e.currentTarget.checked)
+    {
+        moveDown(li);
+    }
+    else
+        moveUp(li); //ganz nach oben
+    emphSave();
+    if(localStorage.getItem("saveDirect")==="true")
+    {
+        writeEntriesToServer();
+        emphSaveRemove();
+    }
+    //console.log(li);
+}
 function addEntry(checked, text, end=true)
 {
      /* Aufbau ist:
@@ -53,22 +67,8 @@ function addEntry(checked, text, end=true)
     input.type = "checkbox";
     if (checked == 1)
         input.checked = true;
-    input.addEventListener("change", e => {
-        let li = e.currentTarget.parentNode.parentNode.parentNode;
-        if (e.currentTarget.checked)
-        {
-            moveDown(li);
-        }
-        else
-            moveUp(li); //ganz nach oben
-        emphSave();
-        if(localStorage.getItem("saveDirect")==="true")
-        {
-            writeEntriesToServer();
-            emphSaveRemove();
-        }
-    //console.log(li);
-    });
+
+    input.addEventListener("change", inputChangeListener);
 
     let span1 = document.createElement("span");
     let span2 = document.createElement("span");
@@ -297,7 +297,7 @@ async function getEntriesFromServer()
             return Promise.reject(jsonProm);
         }
         fillList(jsonProm.entries);//alles klar
-        console.log(jsonProm);
+        //console.log(jsonProm);
     }).catch(response => { //netzwerk fehler / timeout oder Fehler wg not ok (Status != 200 ?
         evaluateNetworkError(response,"load");
     });
@@ -530,6 +530,7 @@ function addStandardListener()
 
     bAdd.addEventListener("click", e => {
         e.preventDefault();
+        console.log("add handler");
         let iAdd = document.getElementById("iAddTopic");
         addEntry(0,iAdd.value,false); //nicht am Ende sondern Anfang
         iAdd.value="";
@@ -541,65 +542,98 @@ function addStandardListener()
         }
     });
     bSort.addEventListener("click",e => {
-    	  e.preventDefault();
-    	  //liste abrufen 
-    	  const entries = document.querySelectorAll("#list li label");
-    	  //erstelle zwei listen, eine mit den nicht markierten und eine mit den markierten also erledigten
-    	  const todoEntries = [];
-    	  const doneEntries = [];
-    	  entries.forEach(el => {
-    	  	if (el.childNodes[0].checked == false)
-    	  	{ 
-    	  		//console.log("find " + el.childNodes[1].innerText + " unchecked");
-    	  		todoEntries.push(new Array(0,el.childNodes[1].innerText));
-    	  	}
-    	  	else
-    	  	{
-    	  		doneEntries.push(new Array(1,el.childNodes[1].innerText));
-    	  	}    	  	
-    	  });
-    	  //sortieren 
-    	  todoEntries.sort( (a,b) => {
-    	    a = a[1].toLowerCase();
-    	    b = b[1].toLowerCase();
-    	  	return a.localeCompare(b);
-    	  });
-    	  doneEntries.sort( (a,b) => {
-    	    a = a[1].toLowerCase();
-    	    b = b[1].toLowerCase();
-    	  	return a.localeCompare(b);
-    	  });
-    	  fillList(todoEntries.concat(doneEntries));
-    	  emphSave();
+        e.preventDefault();
+        console.log("Sort Handler")
+        //liste abrufen
+        const entries = document.querySelectorAll("#list li label");
+        //erstelle zwei listen, eine mit den nicht markierten und eine mit den markierten also erledigten
+        const todoEntries = [];
+        const doneEntries = [];
+        entries.forEach(el => {
+        if (el.childNodes[0].checked == false)
+        {
+            //console.log("find " + el.childNodes[1].innerText + " unchecked");
+            todoEntries.push(new Array(0,el.childNodes[1].innerText));
+        }
+        else
+        {
+            doneEntries.push(new Array(1,el.childNodes[1].innerText));
+        }
+        });
+        //sortieren
+        todoEntries.sort( (a,b) => {
+            a = a[1].toLowerCase();
+            b = b[1].toLowerCase();
+            return a.localeCompare(b);
+        });
+        doneEntries.sort( (a,b) => {
+            a = a[1].toLowerCase();
+            b = b[1].toLowerCase();
+            return a.localeCompare(b);
+        });
+        fillList(todoEntries.concat(doneEntries));
+        emphSave();
         if(localStorage.getItem("saveDirect")==="true") //texte in localstorage
         {
             writeEntriesToServer();
             emphSaveRemove();
         }
-
     });
-    bDrag.addEventListener("click",e => {
-        e.preventDefault();
-        //liste abrufen 
+
+    function getDoneAndTodoEntries()
+    {
         const entries = document.querySelectorAll("#list li");
+        let todoEntries = [];
+        let doneEntries = [];
+        console.log(entries[0].childNodes[0].childNodes[0].childNodes[0]); //das ist das input feld
         //erstelle zwei listen, eine mit den nicht markierten und eine mit den markierten also erledigten
-        const todoEntries = [];
-        const doneEntries = [];
         entries.forEach(el => {
-            if (el.childNodes[0].childNodes[0].checked == false)
+            if (el.childNodes[0].childNodes[0].childNodes[0].checked == false)
             {
-                console.log("find " + el.childNodes[1].innerText + " unchecked");
-                todoEntries.push(el);
+                //console.log("find " + el.childNodes[0].childNodes[0].childNodes[1].innerText + " unchecked");
+                //this.todoEntries.push(el); //this sollte das element sein, an das der handler gebunden ist, stimmt auch                                                //vielleicht nur bei onclick
+                todoEntries.push(el); //speichere aber lieber in dem Objekt, das diese funktion ist
             }
             else
             {
                 doneEntries.push(el);
             }
         });
-    });
+        return [todoEntries, doneEntries];
+    }
+    //listener if button is pressed
+    function dragPressed(e)
+    {
+        if (bDrag.innerText != 'done')
+        {
+            const [todoEntries, doneEntries] = getDoneAndTodoEntries();
+            bDrag.innerText = 'done';
+            //liste abrufen
+            dragPressed.DragItemsTodo = new Dragabble(todoEntries);
+            dragPressed.DragItemsDone = new Dragabble(doneEntries);
+            dragPressed.DragItemsTodo.makeDragabble();
+            dragPressed.DragItemsDone.makeDragabble();
+        }
+        else
+        {
+            dragPressed.DragItemsTodo.makeUnDraggable(); //erst danach kann ich getDoneAnd... wieder nutzen 
+            dragPressed.DragItemsDone.makeUnDraggable(); //erst danach kann ich getDoneAnd... wieder nutzen 
+            const [todoEntries, doneEntries] = getDoneAndTodoEntries();
+            //und die eventhandler wieder zu den elementen hinzufügen, hatte diese lokal gespeichert, aber 
+            //das geht nicht sie sind ja ausgetauscht in der Drag-Klasse
+            const entries = todoEntries.concat(doneEntries);
+            for (let el of entries)
+            {
+                input = el.querySelector('input');
+                input.addEventListener('change',inputChangeListener);
+            }
+            bDrag.innerText="drag";
+        }
+    }
+    bDrag.addEventListener("click",dragPressed);
 }
 
-//window - alles geladen 
+//window - alles geladen
 window.addEventListener("load",async () =>
 {
     let bSave = document.getElementById("bSave");
