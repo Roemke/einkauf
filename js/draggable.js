@@ -8,7 +8,7 @@
    mi browser mobile geht
    firefox mobile geht nicht, doch, hatte anscheinend version aus dem cache gesehen
 /*
-    1) https://htmldom.dev/drag-and-drop-element-in-a-list/ - ohchrone draggable type, etwas aufwendiger
+    1) https://htmldom.dev/drag-and-drop-element-in-a-list/ - ohne draggable type, etwas aufwendiger
     2) https://web.dev/drag-and-drop/ - mit draggable, Autor schreibt: geht nicht unter mobile
     vielleicht ein Mix - hmm beide gehen nicht in firefox mobile
 
@@ -24,10 +24,14 @@ class Dragabble
     //private properties
     //hmm, und wenn es die Klasse im CSS schon gibt?
     static #dragClass = 'dragClassKaRo';
-    static #shiftSignKaRoClass = 'shiftSignKaRo';
+    static #shiftSignClass = 'shiftSignKaRo';
+    static #placeHolderClass = 'placeHolderKaRo';
 
     static #dragSelectedKaroClass = 'dragSelectedKaRo';
     static #draggingEle = null; //aktives element, nur eines denkbar
+    static #placeHolder = null; //fuer das verschobene Element
+    static #placeHolderInserted = false;
+
     static #dragCounter = 0;
     static #dragStyleGenerated = false;
     static #dragClassText = '\
@@ -44,15 +48,23 @@ class Dragabble
     }\
     .dragSelectedKaRo {\
         opacity: 0.6; \
-        border: 1px solid #aaa; \
+        border: 2px solid #aaa; \
+    }\
+    .placeHolderKaRo {\
+        border: 2px dashed blue; \
+        background-color: #eee; \
     }\
     ';
     #name ; //debug-Gruende, evtl. mehrere Objekte gleichzeitig (obwohl: wie dann das richtige heraus suchen)
     #elements; //oh, die muss man tatsaechlich angeben, sonst gibt es beim Zugriff einen Fehler
 
-
+    #deltaX; //Abstand des Mouseclicks von der linken oberen Ecke
+    #deltaY;
+    #width;  //des Elements, bevor es auf position absolute gesetzt wird
+    #height;
     //static method(s)
     //eventlistener auf dem document nur einmal ausgeführt (once) und wird von den anderen listenern entfernt
+    //vermute, dass der globale Handler reicht
     static globalMouseUpHandler(params) {
         if (Dragabble.#draggingEle != null)
             Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
@@ -132,32 +144,50 @@ class Dragabble
             if (el.contains(e.target))
             {
                 Dragabble.#draggingEle = el; //mal auf static gesetzt, ein aktuelles kann es nur eines geben
-                el.style.position="relative";
-                if (isNaN(parseInt(el.style.top)))
-                    el.style.top=el.style.left="0px";
-                //sehr amüsant, das geht, wenn man zu schnell ist, dann verliert man das Element :-)
-                document.addEventListener("mousemove",this.#mouseMoveHandler);
                 el.classList.add(Dragabble.#dragSelectedKaroClass);
+                const rect = el.getBoundingClientRect(); //x und y sind left und top, bezieht sich auf viewport
+                this.#width = rect.width;
+                this.#height = rect.height;
+                Dragabble.#placeHolder = el.cloneNode(false); //keine tiefe kopie
+                let ph = Dragabble.#placeHolder;
+                ph.style.width = this.#width + "px";
+                ph.style.height = this.#height + "px";
+                ph.classList.add(Dragabble.#placeHolderClass);
+                this.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
+                this.#deltaY = e.clientY - rect.y;
+                document.addEventListener("mousemove",this.#mouseMoveHandler);
                 break;
             }
         }
     }
 
     //geht prinzipiell, aber wenn der user zu schnell bewegt, dann verliert man den Handle
-    //lässt sich eventuell über client rect lösen und indem ich statt movement die absoluten positionen 
-    //verwende - mal sehen 
+    //lässt sich eventuell über client rect lösen und indem ich statt movement die absoluten positionen
+    //verwende - mal sehen
     #mouseMoveHandler = e => {
         const el = Dragabble.#draggingEle;
-        if (el != null) //hatte hier manchmal null - warum? 
+        const ph = Dragabble.#placeHolder;
+        if (el != null) //hatte hier manchmal null - warum?
         {
-            let y = parseInt(el.style.top);
-            let x = parseInt(el.style.left);
-            console.log(" x=" + x + " dx=" + e.movementX + " y=" + y + " dy=" + e.movementY);
-            el.style.top = y + e.movementY +"px";
-            el.style.left = x + e.movementX + "px";
+            //position absolte kann die Breite ändern, höhe eigentlich nicht, aber nehme es mal dazu
+            el.style.width = this.#width+"px";
+            el.style.height = this.#height+"px";
+            if (!Dragabble.#placeHolderInserted)
+            {//einfuegen 
+                el.after(Dragabble.#placeHolder); //erst drag ele, dann der platzhalter
+                Dragabble.#placeHolderInserted = true;
+            }
+            el.style.position="absolute";
+            el.style.top =   parseInt(e.pageY - this.#deltaY) +"px";
+            el.style.left = parseInt(e.pageX - this.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
+            if(e.movementY > 0 //nach unten
+                && ph.nextElementSibling //ein nachfolger unter dem platzhalter ist da
+                                         //todo: Bedingung, dass der nächste auch zu meiner Liste gehört
+                &&  Dragabble.#isAbove( ph.nextElementSibling, el))//el unter dem nächsten unterhalb des Plathalters
+                    console.log("have to swap ph and nextElementSibling");
         }
     }
-    #mouseUpHandler = e => {
+    #mouseUpHandler = e => {//brauche evtl. nur den globalen?
         e.stopPropagation(); //sonst wird der handler am document aufgerufen (jedenfalls, wenn man debuggt)
         document.removeEventListener("mousemove",this.#mouseMoveHandler);
         //prüfe ob das ziel in meiner Liste ist
@@ -184,6 +214,14 @@ class Dragabble
         }
     }
 
+    //hilfsmethoden
+    static #isAbove (nodeA, nodeB) {
+        // Get the bounding rectangle of nodes
+        const rectA = nodeA.getBoundingClientRect();
+        const rectB = nodeB.getBoundingClientRect();
+    
+        return rectA.top + rectA.height / 2 < rectB.top + rectB.height / 2;
+    };
     #generateCssClass()
     {
         //ohne document geht es nicht ?- hänge die Klasse ein
@@ -197,7 +235,7 @@ class Dragabble
     #generateShiftSign()
     {
         let insert = document.createElement('div');
-        insert.classList.add(Dragabble.#shiftSignKaRoClass);
+        insert.classList.add(Dragabble.#shiftSignClass);
         insert.innerHTML = "&equiv;";
         return insert;
     }
