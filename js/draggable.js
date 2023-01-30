@@ -23,12 +23,14 @@ class Dragabble
 {
     //private properties
     //hmm, und wenn es die Klasse im CSS schon gibt?
-    #dragClass = 'dragClassKaRo';
-    #shiftSignKaRoClass = 'shiftSignKaRo';
-    #dragSelectedKaRoClass = 'dragSelectedKaRo';
+    static #dragClass = 'dragClassKaRo';
+    static #shiftSignKaRoClass = 'shiftSignKaRo';
 
-    #draggingEle;
-    #dragClassText = '\
+    static #dragSelectedKaroClass = 'dragSelectedKaRo';
+    static #draggingEle = null; //aktives element, nur eines denkbar
+    static #dragCounter = 0;
+    static #dragStyleGenerated = false;
+    static #dragClassText = '\
     .dragClassKaRo { \
         cursor: move;\
         user-select: none; \
@@ -45,20 +47,28 @@ class Dragabble
         border: 1px solid #aaa; \
     }\
     ';
-
-    #sheet;
+    #name ; //debug-Gruende, evtl. mehrere Objekte gleichzeitig (obwohl: wie dann das richtige heraus suchen)
     #elements; //oh, die muss man tatsaechlich angeben, sonst gibt es beim Zugriff einen Fehler
 
+
+    //static method(s)
+    //eventlistener auf dem document nur einmal ausgeführt (once) und wird von den anderen listenern entfernt
+    static globalMouseUpHandler(params) {
+        if (Dragabble.#draggingEle != null)
+            Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
+        Dragabble.#draggingEle = null;
+    }
+
     //public methods
-    constructor (elements)
+    constructor (elements,name = "")
     {
         this.#elements = elements;
+        this.#name = name;
         this.#generateCssClass();
         this.#generateShiftSign();
     }
     makeDragabble()
     {
-        //erstmal nur kosmetik, haenge die Klassen an, entferne eventlistener
         let store = [];
         for (let el of this.#elements)
         {
@@ -67,14 +77,24 @@ class Dragabble
             for (let el of inputs)
                 el.disabled = true; //readOnly geht nicht, aber so schon
             store.push(clone);
-            clone.classList.add(this.#dragClass);
+            clone.classList.add(Dragabble.#dragClass);
             clone.firstChild.style['flex'] = '0 0 90%';
             clone.firstChild.before(this.#generateShiftSign());
             clone.addEventListener('mousedown',this.#mouseDownHandler);
             clone.addEventListener('touchstart',this.#mouseDownHandler);
+            clone.addEventListener('mouseup',this.#mouseUpHandler);
+            clone.addEventListener('touchend',this.#mouseUpHandler);
             el.replaceWith(clone);
             //problem: alte eventlistener hängen ggf. noch an den Objekten, entferne sie - kenne keine Methode sie zu ermitteln             //und am Ende wieder anzufügen.
         }
+        //once geht doch nicht, zieht man ein element zweimal irgendwo hin, klappt es beim zweiten mal nicht mehr
+        if (Dragabble.#dragCounter == 0)
+        {
+            document.addEventListener("mouseup",Dragabble.globalMouseUpHandler);//,{once : true})//nur einmal
+            //vorsicht, ein einfaches true heißt nicht false, sondern das der event in der capturing phase und nicht  in der bubbling phase agefangen wird
+            document.addEventListener("touchend",Dragabble.globalMouseUpHandler);//,{once : true})//nur einmal
+        }
+        Dragabble.#dragCounter++;
         this.#elements = store; //ersetze  die Liste
         //for (let el of this.#elements)
         //    el.classList.remove("dragClassKaRo");
@@ -87,44 +107,97 @@ class Dragabble
             let inputs = el.querySelectorAll('input');
             for (let el of inputs)
                 el.disabled = false;
-            el.classList.remove(this.#dragClass);
+            el.classList.remove(Dragabble.#dragClass);
             el.firstChild.remove();
+            el.removeEventListener('mousedown',this.#mouseDownHandler);
+            el.removeEventListener('touchstart',this.#mouseDownHandler);
+            el.removeEventListener('mouseup',this.#mouseUpHandler);
+            el.removeEventListener('touchend',this.#mouseUpHandler);
+        }
+
+        if (--Dragabble.#dragCounter <= 0 )
+        {  //letzer entfernt
+            document.removeEventListener("mouseup",Dragabble.globalMouseUpHandler);
+            document.removeEventListener("touchend",Dragabble.globalMouseUpHandler); //mal sehen, dürfte nicht stören
         }
     }
 
     //und ein wenig private
-    //handler fuer touchstart und mousedown
+    //handler fuer diverse Elemente
     #mouseDownHandler = e => { //hinweis gefunden: fat-arrow syntax binds to the lexical (?) scope of the function
-                                //damit ist this nicht das obekt auf dem der event ausgeloest wurde, sondern mein Objekt
+                                //damit ist this nicht das objekt auf dem der event ausgeloest wurde, sondern mein Objekt
         //ermittle das zugehörige Element
         for (const el of this.#elements)
         {
             if (el.contains(e.target))
             {
-                this.#draggingEle = el;
-                el.classList.add(this.#dragSelectedKaRoClass);
+                Dragabble.#draggingEle = el; //mal auf static gesetzt, ein aktuelles kann es nur eines geben
+                el.style.position="relative";
+                if (isNaN(parseInt(el.style.top)))
+                    el.style.top=el.style.left="0px";
+                //sehr amüsant, das geht, wenn man zu schnell ist, dann verliert man das Element :-)
+                document.addEventListener("mousemove",this.#mouseMoveHandler);
+                el.classList.add(Dragabble.#dragSelectedKaroClass);
                 break;
             }
         }
-        // Calculate the mouse position
-        const rect = this.#draggingEle.getBoundingClientRect();
-        console.log("downhandler rect  " + rect);
-        // Attach the listeners to `document`
-        //document.addEventListener('mousemove', mouseMoveHandler);
-        //document.addEventListener('mouseup', mouseUpHandler);
-    };
+    }
+
+    //geht prinzipiell, aber wenn der user zu schnell bewegt, dann verliert man den Handle
+    //lässt sich eventuell über client rect lösen und indem ich statt movement die absoluten positionen 
+    //verwende - mal sehen 
+    #mouseMoveHandler = e => {
+        const el = Dragabble.#draggingEle;
+        if (el != null) //hatte hier manchmal null - warum? 
+        {
+            let y = parseInt(el.style.top);
+            let x = parseInt(el.style.left);
+            console.log(" x=" + x + " dx=" + e.movementX + " y=" + y + " dy=" + e.movementY);
+            el.style.top = y + e.movementY +"px";
+            el.style.left = x + e.movementX + "px";
+        }
+    }
+    #mouseUpHandler = e => {
+        e.stopPropagation(); //sonst wird der handler am document aufgerufen (jedenfalls, wenn man debuggt)
+        document.removeEventListener("mousemove",this.#mouseMoveHandler);
+        //prüfe ob das ziel in meiner Liste ist
+        let target = null;
+        for (const el of this.#elements)
+        {
+            if (el.contains(e.target))
+            {
+                target = el;
+                break;
+            }
+        }
+        if (Dragabble.#draggingEle != null)
+        {
+            Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
+            Dragabble.#draggingEle = null;
+            //folgendes scheint nicht zu stören, wenn der listener nicht da ist
+            /*
+            document.removeEventListener("mouseup",Dragabble.globalMouseUpHandler);
+            document.removeEventListener("touchend",Dragabble.globalMouseUpHandler);
+            ist aber nicht klug, zieht man das Element nochmal, diesmal auf ein Element außerhalb der Liste,
+            dann ist der Handler weg, lieber e.stopPropagation oben, das ist auf jeden Fall ok 
+            */
+        }
+    }
 
     #generateCssClass()
     {
         //ohne document geht es nicht ?- hänge die Klasse ein
-        this.#sheet = document.createElement('style');
-        this.#sheet.innerHTML = this.#dragClassText;
-        document.head.appendChild(this.#sheet);
+        if (! Dragabble.#dragStyleGenerated)
+        {
+            let sheet = document.createElement('style');
+            sheet.innerHTML = Dragabble.#dragClassText;
+            document.head.appendChild(sheet);
+        }
     }
     #generateShiftSign()
     {
         let insert = document.createElement('div');
-        insert.classList.add(this.#shiftSignKaRoClass);
+        insert.classList.add(Dragabble.#shiftSignKaRoClass);
         insert.innerHTML = "&equiv;";
         return insert;
     }

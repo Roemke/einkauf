@@ -37,7 +37,7 @@ function addEntry(checked, text, end=true)
      /* Aufbau ist:
         <li>
           <div>
-            <label> <input type="checkbox"> <span>First Entry</span></label> <span>&#128465;</span>
+            <label> <input type="checkbox"> <span>First Entry</span></label> <span class="waste">&#128465;</span>
           </div>
         </li>
         */
@@ -606,11 +606,11 @@ function addStandardListener()
     {
         if (bDrag.innerText != 'done')
         {
+            //liste abrufen
             const [todoEntries, doneEntries] = getDoneAndTodoEntries();
             bDrag.innerText = 'done';
-            //liste abrufen
-            dragPressed.DragItemsTodo = new Dragabble(todoEntries);
-            dragPressed.DragItemsDone = new Dragabble(doneEntries);
+            dragPressed.DragItemsTodo = new Dragabble(todoEntries,"todo");
+            dragPressed.DragItemsDone = new Dragabble(doneEntries,"done");
             dragPressed.DragItemsTodo.makeDragabble();
             dragPressed.DragItemsDone.makeDragabble();
         }
