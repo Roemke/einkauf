@@ -57,10 +57,14 @@ class Dragabble
     #name ; //debug-Gruende, evtl. mehrere Objekte gleichzeitig (obwohl: wie dann das richtige heraus suchen)
     #elements; //oh, die muss man tatsaechlich angeben, sonst gibt es beim Zugriff einen Fehler
 
+    static #previousTouch; //nur fuer ein touch element, fuer movementY noetig, das gibt's beim Touch nicht
+
     static #deltaX; //Abstand des Mouseclicks von der linken oberen Ecke
     static #deltaY;
     static #width;  //des Elements, bevor es auf position absolute gesetzt wird
     static #height;
+
+
 
     //public methods
     constructor (elements,name = "")
@@ -127,6 +131,7 @@ class Dragabble
     //Handler geht nicht static? - muss den mouseMoveHandler entfernen und der geht nicht static
     #globalMouseUpHandler = e => { //muesste doch auch privat gehen
         console.log("in mouseuphandler object hast name " + this.#name)
+        Dragabble.#previousTouch = null;
         if (Dragabble.#draggingEle != null)
             Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
         let ph = Dragabble.#placeHolder
@@ -167,10 +172,14 @@ class Dragabble
                 ph.style.width = Dragabble.#width + "px";
                 ph.style.height = Dragabble.#height + "px";
                 ph.classList.add(Dragabble.#placeHolderClass);
-                Dragabble.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
-                Dragabble.#deltaY = e.clientY - rect.y;
-                document.addEventListener("mousemove",this.#mouseMoveHandler);
-                document.addEventListener("touchmove",this.#mouseMoveHandler);
+                //pruefe ob touchstart, oder mousedown - ersteres -> event steckt n changedTouches
+                let event =  (e.type == "touchstart") ? e.changedTouches[0] : e; 
+                Dragabble.#deltaX = event.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
+                Dragabble.#deltaY = event.clientY - rect.y;
+                if (e.type == "touchstart")
+                    document.addEventListener("touchmove",this.#mouseMoveHandler);
+                else
+                    document.addEventListener("mousemove",this.#mouseMoveHandler);
                 console.log("attach mousemove object has name " + this.#name)
                 break;
             }
@@ -181,7 +190,6 @@ class Dragabble
     //lässt sich eventuell über client rect lösen und indem ich statt movement die absoluten positionen
     //verwende - mal sehen, ja, außerdem an das dokument binden
     #mouseMoveHandler = e => {
-        e.stopPropagation();//preventDefault geht auch nicht, das Window wird geschoben
         const el = Dragabble.#draggingEle;
         const ph = Dragabble.#placeHolder;
         if (el != null) //hatte hier manchmal null - warum?
@@ -194,10 +202,22 @@ class Dragabble
                 el.after(Dragabble.#placeHolder); //erst drag ele, dann der platzhalter
                 Dragabble.#placeHolderInserted = true;
             }
+            let event = (e.type == "touchmove") ? e.changedTouches[0] : e;
             el.style.position="absolute";
-            el.style.top =   parseInt(e.pageY - Dragabble.#deltaY) +"px";
-            el.style.left = parseInt(e.pageX - Dragabble.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
-            if(e.movementY > 0 //nach unten
+            el.style.top =   parseInt(event.pageY - Dragabble.#deltaY) +"px";
+            el.style.left = parseInt(event.pageX - Dragabble.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
+            //fuege movementY hinzu falls touch
+            if (e.type == "touchmove")
+            {
+                if (Dragabble.#previousTouch)
+                {
+                    //console.log("previous touch y: " + Dragabble.#previousTouch.clientY);
+                    //console.log("         touch y: " + e.changedTouches[0].clientY);
+                    event.movementY = e.changedTouches[0].clientY - Dragabble.#previousTouch.clientY;
+                }
+                Dragabble.#previousTouch = e.changedTouches[0];
+            }
+            if(event.movementY > 0 //nach unten
                 && ph.nextElementSibling //ein nachfolger unter dem platzhalter ist da
                 && this.#myListContains(ph.nextElementSibling) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( ph.nextElementSibling, el))//el unter dem nächsten unterhalb des Plathalters
@@ -206,7 +226,7 @@ class Dragabble
                     Dragabble.#swap(el, el.nextElementSibling); //siblings passen sich bei jedem swap an
                 }
             let prev = el.previousElementSibling;//über dem zu verschiebenden
-            if(e.movementY < 0 //nach oben
+            if(event.movementY < 0 //nach oben
                 &&  prev
                 && this.#myListContains(prev) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( el, prev))//el über dem vorigen oberhalb des Plathalters

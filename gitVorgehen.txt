@@ -64,4 +64,9 @@ git checkout -b withoutDrag
 git push --set-upstream origin withoutDrag
 
 erzeuge auch einen withDrag -> 3 branches mal sehen wie weiter 
-das verstehe ich nicht, wieso sehe ich die Änderungen denn jetzt in jedem branch, git doch nicht verstanden  
+lösche den master, brauche ich eigentlich nicht
+
+Läuft soweit auf dem Desktop, kleinere Probleme, mache mal einen checkout für touch
+
+git checkout -b withDragTouch
+git push --set-upstream origin withoutDrag

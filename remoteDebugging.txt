@@ -1,0 +1,8 @@
+Smartphone im Entwicklermodus
+USB Verbindung
+chrome auf desktop starten
+chrome auf android starten
+chrome://inspect auf desktop 
+Seite aufrufen auf chrome android 
+inspect der Seite ist auf dem Desktop möglich, sieht aus wie normales debugging, nett
+ctrl shift r auf desktop browser lädt auf mobile neu 
