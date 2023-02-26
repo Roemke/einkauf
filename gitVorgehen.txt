@@ -70,3 +70,9 @@ Läuft soweit auf dem Desktop, kleinere Probleme, mache mal einen checkout für 
 
 git checkout -b withDragTouch
 git push --set-upstream origin withoutDrag
+
+nehme einen neuen branch für experimente mit pointerevent
+
+git checkout -b pointer
+
+ok, war erfolgreich, jetzt zusammen führen 

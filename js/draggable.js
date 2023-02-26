@@ -16,6 +16,25 @@
 
     Binde ich beide events an, dann wird der Handler jeweils einmal gerufen, entweder mit mousedown oder mit touchstart event.
     (hmm, was meinte ich, nochmal denken...)
+
+    Nach Problemen mit den Touch-Events und einem Hinweis: Sind pointerevents sinnvoll, um das ganze umzusetzen?
+    Probleme: Das device scrolled, preventDefault ist "verboten"
+    Bedienung mit dem Browser funktioniert bei einfachem Ersetzen
+    mousedown -> pointerdown
+    mousemove -> pointermove
+    mouseup   -> pointerup
+
+    Bei pointerevents gibt es auch beim Touch ein movementY -> hätte mir arbeit sparen können ...
+    aber das pointermove event wird nach kurzer Bewegung nicht mehr aufgerufen?
+    The pointermove event is fired when a pointer changes coordinates, and the pointer has not been canceled by a browser touch-action.
+    stelle mal um und hänge die events an document.body und setze style touchAction="none" dynamisch, aber das geht nicht ...
+    alles Murcks
+
+    setze touch-action in css auf none - es funktioniert, aber man kann nicht mehr scrollen - das ist ärgerlich
+    prevent-default in pointermove hilft nicht 
+
+    aber q&d: in touchmove hilft es ...
+
 */
 
 class Dragabble
@@ -87,8 +106,8 @@ class Dragabble
             clone.classList.add(Dragabble.#dragClass);
             clone.firstChild.style['flex'] = '0 0 90%';
             clone.firstChild.before(this.#generateShiftSign());
-            clone.addEventListener('mousedown',this.#mouseDownHandler);
-            clone.addEventListener('touchstart',this.#mouseDownHandler);
+            clone.addEventListener('pointerdown',this.#mouseDownHandler);
+            //clone.addEventListener('touchstart',this.#mouseDownHandler);
             //clone.addEventListener('mouseup',this.#mouseUpHandler);
             //clone.addEventListener('touchend',this.#mouseUpHandler);
             el.replaceWith(clone); //ersetze im DOM damit sind auch die listener weg
@@ -108,8 +127,8 @@ class Dragabble
                 el.disabled = false;
             el.classList.remove(Dragabble.#dragClass);
             el.firstChild.remove();
-            el.removeEventListener('mousedown',this.#mouseDownHandler);
-            el.removeEventListener('touchstart',this.#mouseDownHandler);
+            el.removeEventListener('pointerdown',this.#mouseDownHandler);
+            //el.removeEventListener('touchstart',this.#mouseDownHandler);
         }
 
         /*wollte den Handler mal static machen, geht aber nicht, irgendwo unten dokumentiert.
@@ -128,37 +147,22 @@ class Dragabble
     //static method(s)
     //eventlistener auf dem document wird von den anderen listenern entfernt
     //vermute, dass der globale Handler reicht
-    //Handler geht nicht static? - muss den mouseMoveHandler entfernen und der geht nicht static
-    #globalMouseUpHandler = e => { //muesste doch auch privat gehen
-        console.log("in mouseuphandler object hast name " + this.#name)
-        Dragabble.#previousTouch = null;
-        if (Dragabble.#draggingEle != null)
-            Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
-        let ph = Dragabble.#placeHolder
-        let el = Dragabble.#draggingEle;
-        ph && ph.parentNode && ph.parentNode.removeChild(ph);
-        Dragabble.#placeHolderInserted = false;
-        el.style.removeProperty('top');
-        el.style.removeProperty('left');
-        el.style.removeProperty('position');
-        document.removeEventListener("mousemove",this.#mouseMoveHandler);
-        document.removeEventListener("touchmove",this.#mouseMoveHandler);
-        //dachte ich könnte den mouseMoveHandler privat machen, aber dieses this scheint manchmal die Falsche Klasse zu sein?
-        //das habe ich nicht verstanden... ach verflixt, muss die Technik von unten verwenden
-        Dragabble.#draggingEle = null;
-        Dragabble.#placeHolder = null;
-        document.removeEventListener("mouseup",this.#globalMouseUpHandler);
-    }
 
+    //ein q&d hack, verhindere beim touchmove das default verhalten um scrollen zu unterbinden. 
+    #disableDefaultTouchMove = e => {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
     //handler fuer diverse Elemente0
     #mouseDownHandler = e => { //hinweis gefunden: fat-arrow syntax binds to the lexical (?) scope of the function
                                 //damit ist this nicht das objekt auf dem der event ausgeloest wurde, sondern mein Objekt
         //ermittle das zugehörige Element
-        document.addEventListener("mouseup",this.#globalMouseUpHandler);//,{once : true})//nur einmal
+        document.body.addEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false})
+        document.body.addEventListener("pointerup",this.#globalMouseUpHandler);//,{once : true})//nur einmal
         //vorsicht, ein einfaches true heißt nicht false, sondern das der event in der capturing phase und nicht  in der bubbling phase agefangen wird
-        document.addEventListener("touchend",this.#globalMouseUpHandler);//,{once : true})//nur einmal
-       for (const el of this.#elements)
+        //document.addEventListener("touchend",this.#globalMouseUpHandler);//,{once : true})//nur einmal
+        for (const el of this.#elements)
         {
             if (el.contains(e.target)) //habe in ein oder auf das Listenelement geclickt
             {
@@ -173,13 +177,10 @@ class Dragabble
                 ph.style.height = Dragabble.#height + "px";
                 ph.classList.add(Dragabble.#placeHolderClass);
                 //pruefe ob touchstart, oder mousedown - ersteres -> event steckt n changedTouches
-                let event =  (e.type == "touchstart") ? e.changedTouches[0] : e; 
-                Dragabble.#deltaX = event.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
-                Dragabble.#deltaY = event.clientY - rect.y;
-                if (e.type == "touchstart")
-                    document.addEventListener("touchmove",this.#mouseMoveHandler);
-                else
-                    document.addEventListener("mousemove",this.#mouseMoveHandler);
+                //let event =  (e.type == "touchstart") ? e.changedTouches[0] : e; 
+                Dragabble.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
+                Dragabble.#deltaY = e.clientY - rect.y;
+                document.body.addEventListener("pointermove",this.#mouseMoveHandler);
                 console.log("attach mousemove object has name " + this.#name)
                 break;
             }
@@ -190,6 +191,8 @@ class Dragabble
     //lässt sich eventuell über client rect lösen und indem ich statt movement die absoluten positionen
     //verwende - mal sehen, ja, außerdem an das dokument binden
     #mouseMoveHandler = e => {
+        e.preventDefault();
+        e.stopPropagation();
         const el = Dragabble.#draggingEle;
         const ph = Dragabble.#placeHolder;
         if (el != null) //hatte hier manchmal null - warum?
@@ -202,22 +205,11 @@ class Dragabble
                 el.after(Dragabble.#placeHolder); //erst drag ele, dann der platzhalter
                 Dragabble.#placeHolderInserted = true;
             }
-            let event = (e.type == "touchmove") ? e.changedTouches[0] : e;
             el.style.position="absolute";
-            el.style.top =   parseInt(event.pageY - Dragabble.#deltaY) +"px";
-            el.style.left = parseInt(event.pageX - Dragabble.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
-            //fuege movementY hinzu falls touch
-            if (e.type == "touchmove")
-            {
-                if (Dragabble.#previousTouch)
-                {
-                    //console.log("previous touch y: " + Dragabble.#previousTouch.clientY);
-                    //console.log("         touch y: " + e.changedTouches[0].clientY);
-                    event.movementY = e.changedTouches[0].clientY - Dragabble.#previousTouch.clientY;
-                }
-                Dragabble.#previousTouch = e.changedTouches[0];
-            }
-            if(event.movementY > 0 //nach unten
+            el.style.top =   parseInt(e.pageY - Dragabble.#deltaY) +"px";
+            el.style.left = parseInt(e.pageX - Dragabble.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
+            //console.log("style top: "+ el.style.top)
+            if(e.movementY > 0 //nach unten
                 && ph.nextElementSibling //ein nachfolger unter dem platzhalter ist da
                 && this.#myListContains(ph.nextElementSibling) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( ph.nextElementSibling, el))//el unter dem nächsten unterhalb des Plathalters
@@ -226,7 +218,7 @@ class Dragabble
                     Dragabble.#swap(el, el.nextElementSibling); //siblings passen sich bei jedem swap an
                 }
             let prev = el.previousElementSibling;//über dem zu verschiebenden
-            if(event.movementY < 0 //nach oben
+            if(e.movementY < 0 //nach oben
                 &&  prev
                 && this.#myListContains(prev) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( el, prev))//el über dem vorigen oberhalb des Plathalters
@@ -235,6 +227,29 @@ class Dragabble
                     Dragabble.#swap(ph, prev)
                 }
         }
+    }
+    //Handler geht nicht static? - muss den mouseMoveHandler entfernen und der geht nicht static
+    #globalMouseUpHandler = e => { //muesste doch auch privat gehen
+        console.log("in mouseuphandler object hast name " + this.#name)
+        Dragabble.#previousTouch = null;
+        if (Dragabble.#draggingEle != null)
+            Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
+        let ph = Dragabble.#placeHolder
+        let el = Dragabble.#draggingEle;
+        ph && ph.parentNode && ph.parentNode.removeChild(ph);
+        Dragabble.#placeHolderInserted = false;
+        el.style.removeProperty('top');
+        el.style.removeProperty('left');
+        el.style.removeProperty('position');
+        document.body.removeEventListener("pointermove",this.#mouseMoveHandler);
+        //document.removeEventListener("touchmove",this.#mouseMoveHandler);
+        //dachte ich könnte den mouseMoveHandler privat machen, aber dieses this scheint manchmal die Falsche Klasse zu sein?
+        //das habe ich nicht verstanden... ach verflixt, muss die Technik von unten verwenden
+        Dragabble.#draggingEle = null;
+        Dragabble.#placeHolder = null;
+        document.body.removeEventListener("pointerup",this.#globalMouseUpHandler);
+        document.body.removeEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false});
+
     }
 
     //hilfsmethoden
