@@ -1,9 +1,12 @@
 //Erst diverse Funktionen "main" unten - wenn window das load Event auslöst
 /*
    2023-01-27: sort eingebaut, dabei aufgefallen save der konfiguration klappt nicht ganz, Meldung keine Aenderung
-   und die tokengeschichte am Anfang klappt nicht nochmal anschauen
+   und die tokengeschichte am Anfang klappt nicht nochmal anschauen - ein wenig korrigiert, ob es fertig ist - hmm, 
+   weiß nicht mehr :-)
 
    2023-01-28: wenn Zeit ist, dann mal mit drag and drop spielen, s. klasse draggable.js
+   2023-02-18: Draggable ein wenig repariert
+   2023-02-22: Löschen per waste-Symbol, hatte event vergessen wieder anzuhängen nach dem auf nicht draggable geschaltet
 */
 const programm = "php/ajaxHandler.php";
 
@@ -24,13 +27,19 @@ function inputChangeListener(e)
     }
     else
         moveUp(li); //ganz nach oben
-    emphSave();
-    if(localStorage.getItem("saveDirect")==="true")
-    {
-        writeEntriesToServer();
-        emphSaveRemove();
-    }
+    handleAutoSave();
     //console.log(li);
+}
+
+function appendEventSpanWaste(span)
+{
+    span.addEventListener("click", event => {
+        let liste = document.getElementById("list"); //falls sich liste geändert hat - hmm, sinnvoll?
+        let li = event.currentTarget.parentNode.parentNode;
+        liste.removeChild(li);
+        handleAutoSave();
+    });
+
 }
 function addEntry(checked, text, end=true)
 {
@@ -76,18 +85,7 @@ function addEntry(checked, text, end=true)
     span1.appendChild(document.createTextNode(text));
     span2.innerHTML = "&#128465;";
     span2.classList.add("waste");
-    span2.addEventListener("click", event => {
-        let liste = document.getElementById("list"); //falls sich liste geändert hat
-        let li = event.currentTarget.parentNode.parentNode;
-        liste.removeChild(li);
-        emphSave();
-        if(localStorage.getItem("saveDirect")==="true") //texte in localstorage
-        {
-            writeEntriesToServer();
-            emphSaveRemove();
-        }
-
-    });
+    appendEventSpanWaste(span2);
     label.appendChild(input);
     label.appendChild(span1);
     div.appendChild(label);
@@ -171,18 +169,6 @@ function info(text,overwrite=true,timeout=null)
     document.getElementById("info").classList.remove("hidden");
     if (timeout)
         info.timeOutId = setTimeout(() => {document.getElementById("info").classList.add("hidden");},timeout);
-}
-
-//save hervorheben
-function emphSave()
-{
-    let b = document.getElementById("bSave");
-    b.classList.add("changed");
-}
-function emphSaveRemove()
-{
-    let b = document.getElementById("bSave");
-    b.classList.remove("changed");
 }
 
 //network functions
@@ -370,6 +356,29 @@ function registerListenerEtc()
     addStandardListener();
     getEntriesFromServer();
 }
+
+//save hervorheben
+function emphSave()
+{
+    let b = document.getElementById("bSave");
+    b.classList.add("changed");
+}
+function emphSaveRemove()
+{
+    let b = document.getElementById("bSave");
+    b.classList.remove("changed");
+}
+
+function handleAutoSave() 
+{
+    emphSave();
+    if (localStorage.getItem("saveDirect") === "true") //texte in localstorage
+    {
+        writeEntriesToServer();
+        emphSaveRemove();
+    }
+}
+
 //eventlistener hinzufuegen, settings und die "normalen"
 function addSettingsListener()
 {
@@ -455,12 +464,11 @@ function addSettingsListener()
     document.getElementById("binfoOk").addEventListener("click", (e) => {
         document.getElementById("info").classList.add("hidden");
     });
-
 }
 
 
 
-//Standard Eventlistener fuer buttons etc 
+//Standard Eventlistener fuer buttons etc
 function addStandardListener()
 {
     let bSave = document.getElementById("bSave");
@@ -474,39 +482,11 @@ function addStandardListener()
     //folgendes wird im realen Einsatz nicht noetig sein, da ich den eventlistener beim dynamischen einfuegen der Elemente anhaenge
     let listEntries = document.querySelectorAll("span.waste");
     let liste = document.getElementById("list");
-    listEntries.forEach(element => {
-        element.addEventListener("click", event => {
-            let li = event.currentTarget.parentNode.parentNode;
-            liste.removeChild(li);
-            emphSave();
-            if(localStorage.getItem("saveDirect")==="true")
-            {
-                writeEntriesToServer();
-                emphSaveRemove();
-            }
-        });
-    });
+    listEntries.forEach(element => appendEventSpanWaste);
 
     //das genauso ?
     listEntries = document.querySelectorAll("li input");
-    listEntries.forEach(element => {
-        element.addEventListener("change", e => {
-            let li = e.currentTarget.parentNode.parentNode.parentNode;
-            if (e.currentTarget.checked)
-            {   //nach untenverschieben über das erste checked element
-                moveDown(li);
-            }
-            else
-                moveUp(li); //ganz nach oben
-            //console.log(li);
-            emphSave();
-            if(localStorage.getItem("saveDirect")==="true")
-            {
-                writeEntriesToServer();
-                emphSaveRemove();
-            }
-        });
-    });
+    listEntries.forEach(element =>  element.addEventListener("change", inputChangeListener))
     //--------------------------------------------
     //fuer die Einträge und Liste
     iAddTopic.addEventListener("keypress", function(event) {
@@ -520,7 +500,6 @@ function addStandardListener()
         e.preventDefault();
         writeEntriesToServer();
         emphSaveRemove();
-
     });
     bReload.addEventListener("click", (e)=> {
         e.preventDefault();
@@ -534,12 +513,7 @@ function addStandardListener()
         let iAdd = document.getElementById("iAddTopic");
         addEntry(0,iAdd.value,false); //nicht am Ende sondern Anfang
         iAdd.value="";
-        emphSave();
-        if(localStorage.getItem("saveDirect")==="true")
-        {
-            writeEntriesToServer();
-            emphSaveRemove();
-        }
+        handleAutoSave();
     });
     bSort.addEventListener("click",e => {
         e.preventDefault();
@@ -572,14 +546,49 @@ function addStandardListener()
             return a.localeCompare(b);
         });
         fillList(todoEntries.concat(doneEntries));
-        emphSave();
-        if(localStorage.getItem("saveDirect")==="true") //texte in localstorage
-        {
-            writeEntriesToServer();
-            emphSaveRemove();
-        }
+        handleAutoSave();
     });
+    //listener if dragbutton is pressed
+    bDrag.addEventListener("click",dragPressed); //named function to use a static var
+    //only used here:
+    function dragPressed()
+    {
+        const bSettings = document.getElementById("bSettings");
+        const iAddTopic = document.getElementById("iAddTopic");
+        if (bDrag.innerText != 'done')
+        {
+            //liste abrufen
+            const [todoEntries, doneEntries] = getDoneAndTodoEntries();
+            bDrag.innerText = 'done';
+            dragPressed.elementDisabler = new EnDisabledElements([bAdd,bReload,bSave,bSort,bSettings,iAddTopic]);
+            dragPressed.elementDisabler.disable();
+            dragPressed.DragItemsTodo = new Dragabble(todoEntries,"todo");
+            dragPressed.DragItemsDone = new Dragabble(doneEntries,"done");
+            dragPressed.DragItemsTodo.makeDragabble();
+            dragPressed.DragItemsDone.makeDragabble();
+        }
+        else
+        {
+            dragPressed.DragItemsTodo.makeUnDraggable(); //erst danach kann ich getDoneAnd... wieder nutzen
+            dragPressed.DragItemsDone.makeUnDraggable(); //erst danach kann ich getDoneAnd... wieder nutze
+            //und die eventhandler wieder zu den elementen hinzufügen, hatte die Objekte lokal gespeichert, aber 
+            //das geht nicht sie sind ja ausgetauscht in der Drag-Klasse
+            const [todoEntries, doneEntries] = getDoneAndTodoEntries();
+            const entries = todoEntries.concat(doneEntries);
+            for (let el of entries)
+            {
+                let input = el.querySelector('input');
+                input.addEventListener('change',inputChangeListener);
+                let waste = el.querySelector('.waste'); //erstes Element mit der Klasse - es sollte nur eines geben, einen span
+                appendEventSpanWaste(waste);
 
+            }
+            handleAutoSave();
+            bDrag.innerText="drag";
+            dragPressed.elementDisabler.enable();
+
+        }
+    }
     function getDoneAndTodoEntries()
     {
         const entries = document.querySelectorAll("#list li");
@@ -601,36 +610,50 @@ function addStandardListener()
         });
         return [todoEntries, doneEntries];
     }
-    //listener if button is pressed
-    function dragPressed(e)
+
+    //q&d, hatte die eventlistener als anonyme function hinzugefügt - entfernen? - keinen sinnvollen Weg gefunden
+    //clone sie - kann auch direkt ausgrauen und die Listener sind weg. Verberge die originale
+    class EnDisabledElements
     {
-        if (bDrag.innerText != 'done')
+        #elementClones;
+        #elements;
+        constructor (elements)
         {
-            //liste abrufen
-            const [todoEntries, doneEntries] = getDoneAndTodoEntries();
-            bDrag.innerText = 'done';
-            dragPressed.DragItemsTodo = new Dragabble(todoEntries,"todo");
-            dragPressed.DragItemsDone = new Dragabble(doneEntries,"done");
-            dragPressed.DragItemsTodo.makeDragabble();
-            dragPressed.DragItemsDone.makeDragabble();
+            this.#elementClones = [];
+            this.#elements = [];
+            elements.forEach(element => {
+                if (! element.classList.contains("hidden"))
+                { //don't handle hidden elements
+                    this.#elements.push(element);
+                }
+            });
+
         }
-        else
+        disable(elements)//array of elements
         {
-            dragPressed.DragItemsTodo.makeUnDraggable(); //erst danach kann ich getDoneAnd... wieder nutzen 
-            dragPressed.DragItemsDone.makeUnDraggable(); //erst danach kann ich getDoneAnd... wieder nutzen 
-            const [todoEntries, doneEntries] = getDoneAndTodoEntries();
-            //und die eventhandler wieder zu den elementen hinzufügen, hatte diese lokal gespeichert, aber 
-            //das geht nicht sie sind ja ausgetauscht in der Drag-Klasse
-            const entries = todoEntries.concat(doneEntries);
-            for (let el of entries)
+            this.#elements.forEach(element => {
+                if (! element.classList.contains("hidden"))
+                { //don't hide and clone hidden elements
+                    let clone = element.cloneNode(true);
+                    this.#elementClones.push(clone);
+                    element.classList.add("hidden");
+                    clone.classList.add("greyed");
+                    element.after(clone);
+                }
+            });
+        }
+        enable() //enable all
+        {
+            let i = 0;
+            while(this.#elementClones.length > 0)
             {
-                input = el.querySelector('input');
-                input.addEventListener('change',inputChangeListener);
+                let clone = this.#elementClones.shift();
+                let el = this.#elements[i++];
+                el.classList.remove("hidden");
+                clone.remove();
             }
-            bDrag.innerText="drag";
         }
     }
-    bDrag.addEventListener("click",dragPressed);
 }
 
 //window - alles geladen

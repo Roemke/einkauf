@@ -78,6 +78,10 @@ ul {
 .hidden {
     display: none;
 }
+.greyed {
+    opacity: 0.2;
+}
+
 .center{
     margin-left: auto;
     margin-right: auto;

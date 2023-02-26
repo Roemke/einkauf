@@ -1,6 +1,5 @@
 /* uebergebe Liste von Elementen */
 //class Dragabble {} hmm, neuer ansatz ES6, jedoch ist nicht klar wie gut die Browser das unterstützen
-//uups firefox mobile gar nicht ...Anfänge laufen im Browser, mehr nicht
 /*
    also  teilweise unterstützung für class / meine Anfänge
    firefox ubuntu geht,
@@ -16,7 +15,7 @@
     mousedown arbeitet nicht mit einem touchscreen
 
     Binde ich beide events an, dann wird der Handler jeweils einmal gerufen, entweder mit mousedown oder mit touchstart event.
-
+    (hmm, was meinte ich, nochmal denken...)
 */
 
 class Dragabble
@@ -58,18 +57,10 @@ class Dragabble
     #name ; //debug-Gruende, evtl. mehrere Objekte gleichzeitig (obwohl: wie dann das richtige heraus suchen)
     #elements; //oh, die muss man tatsaechlich angeben, sonst gibt es beim Zugriff einen Fehler
 
-    #deltaX; //Abstand des Mouseclicks von der linken oberen Ecke
-    #deltaY;
-    #width;  //des Elements, bevor es auf position absolute gesetzt wird
-    #height;
-    //static method(s)
-    //eventlistener auf dem document nur einmal ausgeführt (once) und wird von den anderen listenern entfernt
-    //vermute, dass der globale Handler reicht
-    static globalMouseUpHandler(params) {
-        if (Dragabble.#draggingEle != null)
-            Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
-        Dragabble.#draggingEle = null;
-    }
+    static #deltaX; //Abstand des Mouseclicks von der linken oberen Ecke
+    static #deltaY;
+    static #width;  //des Elements, bevor es auf position absolute gesetzt wird
+    static #height;
 
     //public methods
     constructor (elements,name = "")
@@ -84,9 +75,9 @@ class Dragabble
         let store = [];
         for (let el of this.#elements)
         {
-            let clone = el.cloneNode(true);
+            let clone = el.cloneNode(true); //tiefe kopie (true)
             let inputs = clone.querySelectorAll('input');
-            for (let el of inputs)
+            for (let el of inputs)//ausschalten
                 el.disabled = true; //readOnly geht nicht, aber so schon
             store.push(clone);
             clone.classList.add(Dragabble.#dragClass);
@@ -94,17 +85,9 @@ class Dragabble
             clone.firstChild.before(this.#generateShiftSign());
             clone.addEventListener('mousedown',this.#mouseDownHandler);
             clone.addEventListener('touchstart',this.#mouseDownHandler);
-            clone.addEventListener('mouseup',this.#mouseUpHandler);
-            clone.addEventListener('touchend',this.#mouseUpHandler);
-            el.replaceWith(clone);
-            //problem: alte eventlistener hängen ggf. noch an den Objekten, entferne sie - kenne keine Methode sie zu ermitteln             //und am Ende wieder anzufügen.
-        }
-        //once geht doch nicht, zieht man ein element zweimal irgendwo hin, klappt es beim zweiten mal nicht mehr
-        if (Dragabble.#dragCounter == 0)
-        {
-            document.addEventListener("mouseup",Dragabble.globalMouseUpHandler);//,{once : true})//nur einmal
-            //vorsicht, ein einfaches true heißt nicht false, sondern das der event in der capturing phase und nicht  in der bubbling phase agefangen wird
-            document.addEventListener("touchend",Dragabble.globalMouseUpHandler);//,{once : true})//nur einmal
+            //clone.addEventListener('mouseup',this.#mouseUpHandler);
+            //clone.addEventListener('touchend',this.#mouseUpHandler);
+            el.replaceWith(clone); //ersetze im DOM damit sind auch die listener weg
         }
         Dragabble.#dragCounter++;
         this.#elements = store; //ersetze  die Liste
@@ -123,94 +106,114 @@ class Dragabble
             el.firstChild.remove();
             el.removeEventListener('mousedown',this.#mouseDownHandler);
             el.removeEventListener('touchstart',this.#mouseDownHandler);
-            el.removeEventListener('mouseup',this.#mouseUpHandler);
-            el.removeEventListener('touchend',this.#mouseUpHandler);
         }
 
+        /*wollte den Handler mal static machen, geht aber nicht, irgendwo unten dokumentiert.
+        Interessant, auch wenn man es ausführt kein Fehler, ich entferne ein undefined (Dragabble.glo...), das interessiert
+        JS anscheinend nicht
         if (--Dragabble.#dragCounter <= 0 )
         {  //letzer entfernt
             document.removeEventListener("mouseup",Dragabble.globalMouseUpHandler);
             document.removeEventListener("touchend",Dragabble.globalMouseUpHandler); //mal sehen, dürfte nicht stören
         }
+        */
     }
 
+
     //und ein wenig private
-    //handler fuer diverse Elemente
+    //static method(s)
+    //eventlistener auf dem document wird von den anderen listenern entfernt
+    //vermute, dass der globale Handler reicht
+    //Handler geht nicht static? - muss den mouseMoveHandler entfernen und der geht nicht static
+    #globalMouseUpHandler = e => { //muesste doch auch privat gehen
+        console.log("in mouseuphandler object hast name " + this.#name)
+        if (Dragabble.#draggingEle != null)
+            Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
+        let ph = Dragabble.#placeHolder
+        let el = Dragabble.#draggingEle;
+        ph && ph.parentNode && ph.parentNode.removeChild(ph);
+        Dragabble.#placeHolderInserted = false;
+        el.style.removeProperty('top');
+        el.style.removeProperty('left');
+        el.style.removeProperty('position');
+        document.removeEventListener("mousemove",this.#mouseMoveHandler);
+        document.removeEventListener("touchmove",this.#mouseMoveHandler);
+        //dachte ich könnte den mouseMoveHandler privat machen, aber dieses this scheint manchmal die Falsche Klasse zu sein?
+        //das habe ich nicht verstanden... ach verflixt, muss die Technik von unten verwenden
+        Dragabble.#draggingEle = null;
+        Dragabble.#placeHolder = null;
+        document.removeEventListener("mouseup",this.#globalMouseUpHandler);
+    }
+
+
+    //handler fuer diverse Elemente0
     #mouseDownHandler = e => { //hinweis gefunden: fat-arrow syntax binds to the lexical (?) scope of the function
                                 //damit ist this nicht das objekt auf dem der event ausgeloest wurde, sondern mein Objekt
         //ermittle das zugehörige Element
-        for (const el of this.#elements)
+        document.addEventListener("mouseup",this.#globalMouseUpHandler);//,{once : true})//nur einmal
+        //vorsicht, ein einfaches true heißt nicht false, sondern das der event in der capturing phase und nicht  in der bubbling phase agefangen wird
+        document.addEventListener("touchend",this.#globalMouseUpHandler);//,{once : true})//nur einmal
+       for (const el of this.#elements)
         {
-            if (el.contains(e.target))
+            if (el.contains(e.target)) //habe in ein oder auf das Listenelement geclickt
             {
                 Dragabble.#draggingEle = el; //mal auf static gesetzt, ein aktuelles kann es nur eines geben
                 el.classList.add(Dragabble.#dragSelectedKaroClass);
                 const rect = el.getBoundingClientRect(); //x und y sind left und top, bezieht sich auf viewport
-                this.#width = rect.width;
-                this.#height = rect.height;
+                Dragabble.#width = rect.width;
+                Dragabble.#height = rect.height;
                 Dragabble.#placeHolder = el.cloneNode(false); //keine tiefe kopie
                 let ph = Dragabble.#placeHolder;
-                ph.style.width = this.#width + "px";
-                ph.style.height = this.#height + "px";
+                ph.style.width = Dragabble.#width + "px";
+                ph.style.height = Dragabble.#height + "px";
                 ph.classList.add(Dragabble.#placeHolderClass);
-                this.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
-                this.#deltaY = e.clientY - rect.y;
+                Dragabble.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
+                Dragabble.#deltaY = e.clientY - rect.y;
                 document.addEventListener("mousemove",this.#mouseMoveHandler);
+                document.addEventListener("touchmove",this.#mouseMoveHandler);
+                console.log("attach mousemove object has name " + this.#name)
                 break;
             }
-        }
+1        }
     }
 
     //geht prinzipiell, aber wenn der user zu schnell bewegt, dann verliert man den Handle
     //lässt sich eventuell über client rect lösen und indem ich statt movement die absoluten positionen
-    //verwende - mal sehen
+    //verwende - mal sehen, ja, außerdem an das dokument binden
     #mouseMoveHandler = e => {
+        e.stopPropagation();//preventDefault geht auch nicht, das Window wird geschoben
         const el = Dragabble.#draggingEle;
         const ph = Dragabble.#placeHolder;
         if (el != null) //hatte hier manchmal null - warum?
         {
             //position absolte kann die Breite ändern, höhe eigentlich nicht, aber nehme es mal dazu
-            el.style.width = this.#width+"px";
-            el.style.height = this.#height+"px";
+            el.style.width = Dragabble.#width+"px";
+            el.style.height = Dragabble.#height+"px";
             if (!Dragabble.#placeHolderInserted)
-            {//einfuegen 
+            {//einfuegen
                 el.after(Dragabble.#placeHolder); //erst drag ele, dann der platzhalter
                 Dragabble.#placeHolderInserted = true;
             }
             el.style.position="absolute";
-            el.style.top =   parseInt(e.pageY - this.#deltaY) +"px";
-            el.style.left = parseInt(e.pageX - this.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
+            el.style.top =   parseInt(e.pageY - Dragabble.#deltaY) +"px";
+            el.style.left = parseInt(e.pageX - Dragabble.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
             if(e.movementY > 0 //nach unten
                 && ph.nextElementSibling //ein nachfolger unter dem platzhalter ist da
-                                         //todo: Bedingung, dass der nächste auch zu meiner Liste gehört
+                && this.#myListContains(ph.nextElementSibling) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( ph.nextElementSibling, el))//el unter dem nächsten unterhalb des Plathalters
-                    console.log("have to swap ph and nextElementSibling");
-        }
-    }
-    #mouseUpHandler = e => {//brauche evtl. nur den globalen?
-        e.stopPropagation(); //sonst wird der handler am document aufgerufen (jedenfalls, wenn man debuggt)
-        document.removeEventListener("mousemove",this.#mouseMoveHandler);
-        //prüfe ob das ziel in meiner Liste ist
-        let target = null;
-        for (const el of this.#elements)
-        {
-            if (el.contains(e.target))
-            {
-                target = el;
-                break;
-            }
-        }
-        if (Dragabble.#draggingEle != null)
-        {
-            Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
-            Dragabble.#draggingEle = null;
-            //folgendes scheint nicht zu stören, wenn der listener nicht da ist
-            /*
-            document.removeEventListener("mouseup",Dragabble.globalMouseUpHandler);
-            document.removeEventListener("touchend",Dragabble.globalMouseUpHandler);
-            ist aber nicht klug, zieht man das Element nochmal, diesmal auf ein Element außerhalb der Liste,
-            dann ist der Handler weg, lieber e.stopPropagation oben, das ist auf jeden Fall ok 
-            */
+                {
+                    Dragabble.#swap(ph, ph.nextElementSibling);
+                    Dragabble.#swap(el, el.nextElementSibling); //siblings passen sich bei jedem swap an
+                }
+            let prev = el.previousElementSibling;//über dem zu verschiebenden
+            if(e.movementY < 0 //nach oben
+                &&  prev
+                && this.#myListContains(prev) //Bedingung, dass der nächste auch zu meiner Liste gehört
+                &&  Dragabble.#isAbove( el, prev))//el über dem vorigen oberhalb des Plathalters
+                {
+                    Dragabble.#swap(el, prev);
+                    Dragabble.#swap(ph, prev)
+                }
         }
     }
 
@@ -219,9 +222,29 @@ class Dragabble
         // Get the bounding rectangle of nodes
         const rectA = nodeA.getBoundingClientRect();
         const rectB = nodeB.getBoundingClientRect();
-    
+
         return rectA.top + rectA.height / 2 < rectB.top + rectB.height / 2;
     };
+    //austausch, klappt auch wenn im DOM eingehängt
+    static #swap(nodeA, nodeB)
+    {
+        const parentA = nodeA.parentNode;
+        const siblingA = nodeA.nextSibling === nodeB ? nodeA : nodeA.nextSibling;
+               //A B dann A, wenn A C B D dann C
+        // Move `nodeA` to before the `nodeB`
+        nodeB.before(nodeA); //vor B wird A eingefügt
+
+        // Move `nodeB` to before the sibling of `nodeA`
+        siblingA.before(nodeB);
+    }
+
+    #myListContains(element)
+    {
+        for (const el of this.#elements)
+            if (el == element)
+                return true;
+        return false;
+    }
     #generateCssClass()
     {
         //ohne document geht es nicht ?- hänge die Klasse ein

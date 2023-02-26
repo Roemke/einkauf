@@ -63,7 +63,7 @@
 		}
 		public function saveTokenList()
 		{
-			file_put_contents($this->tokenFile,json_encode($this->tokenList));
+			return file_put_contents($this->tokenFile,json_encode($this->tokenList));
 		}
 
 		public function jsonSerialize()
@@ -178,7 +178,11 @@
 				}
 				//speichern der Information
 				$this->tokenList[$this->token] = ['access' => new DateTime("now"),'save' => null, 'load' => null];
-				$this->saveTokenList();
+				if ($this->saveTokenList()===false)
+				{
+					$this->state = 1;
+					$this->infoText = "Probleme beim Speichern der Token-Datei, admin fragen :-)";
+				}
 
 			}
 		}
