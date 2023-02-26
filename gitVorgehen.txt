@@ -75,4 +75,15 @@ nehme einen neuen branch für experimente mit pointerevent
 
 git checkout -b pointer
 
-ok, war erfolgreich, jetzt zusammen führen 
+ok, war erfolgreich, jetzt zusammen führen
+
+dazu 
+git checkout withDragTouch
+git merge pointer 
+da an withDragTouch nichts geändert, sollten die neuen Änderungen da sein 
+
+Aufräumen, die unbenutzen können weg, das sind 
+pointer -> loeschen
+withDrag -> nicht loeschen, sollte bei reinem mousemove sein, lasse das mal da 
+
+it branch -d pointer

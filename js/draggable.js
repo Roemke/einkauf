@@ -33,7 +33,16 @@
     setze touch-action in css auf none - es funktioniert, aber man kann nicht mehr scrollen - das ist ärgerlich
     prevent-default in pointermove hilft nicht 
 
-    aber q&d: in touchmove hilft es ...
+    aber q&d: in touchmove hilft es ... leider zu q&d man bekommt seltsame neben-effekte, insbesondere wenn man mit zwei fingern 
+    arbeitet, vielleicht das pointermove doch nicht global?
+    mal wieder an das element gebunden und wenn ich schön langsam bewege geht es, sonst nicht, scheint nicht die Lösung zu sein
+
+    mit pointerCapture geht es, hatte auch testweise mal auf onpointermove umgestellt statt addeventlistener
+    wobei man die touch-action für den clone allerdings auf none setzen muss, s. in der Klasse dragClassKaro
+    aber: der swap macht probleme, weiß nicht mehr, was ich mir dabei gedacht hatte, nochmal überlegen
+    Probleme insofern, als das move dann hängen bleibt
+
+    Da mein Element bewegt wird, ist der swap auch quatsch, ich muss nur den placeholder sinnvoll bewegen und tauschen
 
 */
 
@@ -56,6 +65,7 @@ class Dragabble
     .dragClassKaRo { \
         cursor: move;\
         user-select: none; \
+        touch-action: none; \
         display: flex; \
         justify-content: space-between; \
     } \
@@ -158,8 +168,8 @@ class Dragabble
     #mouseDownHandler = e => { //hinweis gefunden: fat-arrow syntax binds to the lexical (?) scope of the function
                                 //damit ist this nicht das objekt auf dem der event ausgeloest wurde, sondern mein Objekt
         //ermittle das zugehörige Element
-        document.body.addEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false})
-        document.body.addEventListener("pointerup",this.#globalMouseUpHandler);//,{once : true})//nur einmal
+        //document.body.addEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false})
+        //document.body.addEventListener("pointerup",this.#globalMouseUpHandler);//,{once : true})//nur einmal
         //vorsicht, ein einfaches true heißt nicht false, sondern das der event in der capturing phase und nicht  in der bubbling phase agefangen wird
         //document.addEventListener("touchend",this.#globalMouseUpHandler);//,{once : true})//nur einmal
         for (const el of this.#elements)
@@ -176,11 +186,14 @@ class Dragabble
                 ph.style.width = Dragabble.#width + "px";
                 ph.style.height = Dragabble.#height + "px";
                 ph.classList.add(Dragabble.#placeHolderClass);
-                //pruefe ob touchstart, oder mousedown - ersteres -> event steckt n changedTouches
-                //let event =  (e.type == "touchstart") ? e.changedTouches[0] : e; 
                 Dragabble.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
                 Dragabble.#deltaY = e.clientY - rect.y;
-                document.body.addEventListener("pointermove",this.#mouseMoveHandler);
+                //document.body.addEventListener("pointermove",this.#mouseMoveHandler);
+                el.setPointerCapture(e.pointerId);
+                el.onpointermove = this.#mouseMoveHandler;
+                //el.addEventListener("pointermove",this.#mouseMoveHandler);
+                el.onpointerup = this.#globalMouseUpHandler;
+                //el.addEventListener("pointerup",this.#globalMouseUpHandler);
                 console.log("attach mousemove object has name " + this.#name)
                 break;
             }
@@ -191,8 +204,6 @@ class Dragabble
     //lässt sich eventuell über client rect lösen und indem ich statt movement die absoluten positionen
     //verwende - mal sehen, ja, außerdem an das dokument binden
     #mouseMoveHandler = e => {
-        e.preventDefault();
-        e.stopPropagation();
         const el = Dragabble.#draggingEle;
         const ph = Dragabble.#placeHolder;
         if (el != null) //hatte hier manchmal null - warum?
@@ -200,55 +211,58 @@ class Dragabble
             //position absolte kann die Breite ändern, höhe eigentlich nicht, aber nehme es mal dazu
             el.style.width = Dragabble.#width+"px";
             el.style.height = Dragabble.#height+"px";
+            //console.log("style top: "+ el.style.top)
+
             if (!Dragabble.#placeHolderInserted)
             {//einfuegen
                 el.after(Dragabble.#placeHolder); //erst drag ele, dann der platzhalter
                 Dragabble.#placeHolderInserted = true;
             }
             el.style.position="absolute";
-            el.style.top =   parseInt(e.pageY - Dragabble.#deltaY) +"px";
-            el.style.left = parseInt(e.pageX - Dragabble.#deltaX) + "px"; //page, da sich absolute auf die page bezieht
-            //console.log("style top: "+ el.style.top)
+            el.style.top =   parseInt(e.pageY - Dragabble.#deltaY) +"px"; //hier page noetig, falls gescrollt
+            el.style.left = parseInt(e.pageX - Dragabble.#deltaX) + "px";
+            //aufpassen, das element bleibt an der position in der liste, nur die position auf dem Bildschirm
+            //ändert sich, daher next und prev nötig
+            let next = (ph.nextElementSibling == el) ? el.nextElementSibling : ph.nextElementSibling;
             if(e.movementY > 0 //nach unten
-                && ph.nextElementSibling //ein nachfolger unter dem platzhalter ist da
-                && this.#myListContains(ph.nextElementSibling) //Bedingung, dass der nächste auch zu meiner Liste gehört
-                &&  Dragabble.#isAbove( ph.nextElementSibling, el))//el unter dem nächsten unterhalb des Plathalters
-                {
-                    Dragabble.#swap(ph, ph.nextElementSibling);
-                    Dragabble.#swap(el, el.nextElementSibling); //siblings passen sich bei jedem swap an
-                }
-            let prev = el.previousElementSibling;//über dem zu verschiebenden
+                && next //ein nachfolger unter dem platzhalter ist da
+                && this.#myListContains(next) //Bedingung, dass der nächste auch zu meiner Liste gehört
+                &&  Dragabble.#isAbove( next, el))//el unter dem nächsten unterhalb des Plathalters
+            {
+                Dragabble.#swap(ph, next);
+            }
+            let prev = (ph.previousElementSibling == el) ? el.previousElementSibling : ph.previousElementSibling;
             if(e.movementY < 0 //nach oben
                 &&  prev
                 && this.#myListContains(prev) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( el, prev))//el über dem vorigen oberhalb des Plathalters
-                {
-                    Dragabble.#swap(el, prev);
-                    Dragabble.#swap(ph, prev)
-                }
+            {
+                    Dragabble.#swap(ph, prev);
+            }
         }
     }
-    //Handler geht nicht static? - muss den mouseMoveHandler entfernen und der geht nicht static
-    #globalMouseUpHandler = e => { //muesste doch auch privat gehen
+
+    //umgestellt, im mouseUpHandler muss das Element einsortiert werden 
+    #globalMouseUpHandler = e => { 
         console.log("in mouseuphandler object hast name " + this.#name)
         Dragabble.#previousTouch = null;
         if (Dragabble.#draggingEle != null)
             Dragabble.#draggingEle.classList.remove(Dragabble.#dragSelectedKaroClass);
         let ph = Dragabble.#placeHolder
         let el = Dragabble.#draggingEle;
+        ph.after(el); //das reicht schon       
         ph && ph.parentNode && ph.parentNode.removeChild(ph);
         Dragabble.#placeHolderInserted = false;
         el.style.removeProperty('top');
         el.style.removeProperty('left');
         el.style.removeProperty('position');
-        document.body.removeEventListener("pointermove",this.#mouseMoveHandler);
-        //document.removeEventListener("touchmove",this.#mouseMoveHandler);
-        //dachte ich könnte den mouseMoveHandler privat machen, aber dieses this scheint manchmal die Falsche Klasse zu sein?
-        //das habe ich nicht verstanden... ach verflixt, muss die Technik von unten verwenden
+        el.onpointermove = null;
+        el.onpointerup = null;
+        //document.body.removeEventListener("pointermove",this.#mouseMoveHandler);
         Dragabble.#draggingEle = null;
         Dragabble.#placeHolder = null;
-        document.body.removeEventListener("pointerup",this.#globalMouseUpHandler);
-        document.body.removeEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false});
+        //document.body.removeEventListener("pointerup",this.#globalMouseUpHandler);
+        //document.body.removeEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false});
 
     }
 
@@ -263,14 +277,18 @@ class Dragabble
     //austausch, klappt auch wenn im DOM eingehängt
     static #swap(nodeA, nodeB)
     {
-        const parentA = nodeA.parentNode;
-        const siblingA = nodeA.nextSibling === nodeB ? nodeA : nodeA.nextSibling;
-               //A B dann A, wenn A C B D dann C
-        // Move `nodeA` to before the `nodeB`
-        nodeB.before(nodeA); //vor B wird A eingefügt
-
-        // Move `nodeB` to before the sibling of `nodeA`
-        siblingA.before(nodeB);
+        const nextOfA = nodeA.nextSibling;
+        const prevOfA = nodeA.previousSibling;
+        const nextOfB = nodeB.nextSibling;
+        const prevOfB = nodeB.previousSibling;
+        if (nextOfA)
+            nextOfA.before(nodeB);
+        else
+            prevOfA.after(nodeB);
+        if (nextOfB)
+            nextOfB.before(nodeA);
+        else 
+            prevOfB.after(nodeA);
     }
 
     #myListContains(element)
