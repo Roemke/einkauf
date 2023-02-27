@@ -47,7 +47,10 @@
     Probleme insofern, als das move dann hängen bleibt
 
     Da mein Element bewegt wird, ist der swap auch quatsch, ich muss nur den placeholder sinnvoll bewegen und tauschen
+    swap überarbeitet, mit dem normalen Browser funktioniert es jetzt. 
 
+    Aber mit Firefox auf Android klappt das schieben nicht und mann muss die zwei Finger geschichte noch irgendwie
+    herausnehmen, das kann die Klasse nicht
 */
 
 class Dragabble
