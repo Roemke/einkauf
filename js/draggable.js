@@ -17,6 +17,10 @@
     Binde ich beide events an, dann wird der Handler jeweils einmal gerufen, entweder mit mousedown oder mit touchstart event.
     (hmm, was meinte ich, nochmal denken...)
 
+    Beide nicht für mich geeignet, eher eigene Loesung gebastelt, viel experimentiert
+
+    Anforderungen: bekomme Listenelemente übergeben, diese beinhalten einem div in dem weitere Elemente sind 
+
     Nach Problemen mit den Touch-Events und einem Hinweis: Sind pointerevents sinnvoll, um das ganze umzusetzen?
     Probleme: Das device scrolled, preventDefault ist "verboten"
     Bedienung mit dem Browser funktioniert bei einfachem Ersetzen
@@ -71,8 +75,10 @@ class Dragabble
     } \
     .shiftSignKaRo {\
         font-size: 150%; \
-        padding: 0px 2em; \
-        flex: 0 0 5%;  \
+        flex-basis: 5%; /*klein*/\
+    }\
+    .shiftSignKaRo + div  { /*der nächste div ist ein flex-element */\
+        flex-basis: 90%; /*nicht auf 100%, etwas Platz*/\
     }\
     .dragSelectedKaRo {\
         opacity: 0.6; \
@@ -106,7 +112,7 @@ class Dragabble
     makeDragabble()
     {
         let store = [];
-        for (let el of this.#elements)
+        for (let el of this.#elements) 
         {
             let clone = el.cloneNode(true); //tiefe kopie (true)
             let inputs = clone.querySelectorAll('input');
@@ -114,8 +120,8 @@ class Dragabble
                 el.disabled = true; //readOnly geht nicht, aber so schon
             store.push(clone);
             clone.classList.add(Dragabble.#dragClass);
-            clone.firstChild.style['flex'] = '0 0 90%';
-            clone.firstChild.before(this.#generateShiftSign());
+            clone.firstElementChild.before(this.#generateShiftSign());//fuegt einen Div ein 
+            
             clone.addEventListener('pointerdown',this.#mouseDownHandler);
             //clone.addEventListener('touchstart',this.#mouseDownHandler);
             //clone.addEventListener('mouseup',this.#mouseUpHandler);
@@ -197,7 +203,7 @@ class Dragabble
                 console.log("attach mousemove object has name " + this.#name)
                 break;
             }
-1        }
+        }
     }
 
     //geht prinzipiell, aber wenn der user zu schnell bewegt, dann verliert man den Handle
@@ -279,16 +285,11 @@ class Dragabble
     {
         const nextOfA = nodeA.nextSibling;
         const prevOfA = nodeA.previousSibling;
-        const nextOfB = nodeB.nextSibling;
-        const prevOfB = nodeB.previousSibling;
+        nodeB.after(nodeA);
         if (nextOfA)
             nextOfA.before(nodeB);
         else
             prevOfA.after(nodeB);
-        if (nextOfB)
-            nextOfB.before(nodeA);
-        else 
-            prevOfB.after(nodeA);
     }
 
     #myListContains(element)
