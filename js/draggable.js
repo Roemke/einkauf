@@ -50,7 +50,8 @@
     swap überarbeitet, mit dem normalen Browser funktioniert es jetzt. 
 
     Aber mit Firefox auf Android klappt das schieben nicht und mann muss die zwei Finger geschichte noch irgendwie
-    herausnehmen, das kann die Klasse nicht
+    herausnehmen, das kann die Klasse nicht, ok ist raus, aber es ist noch ein Problem, dass bei der rückkehr zum normalen Modus die 
+    Abstände nicht mehr stimmen und das schieben meist nur in eine Richtung läuft (Firefox Android), nochmal auf chrome testen 
 */
 
 class Dragabble
@@ -66,7 +67,7 @@ class Dragabble
     static #placeHolder = null; //fuer das verschobene Element
     static #placeHolderInserted = false;
 
-    static #dragCounter = 0;
+    static #dragActive = false;
     static #dragStyleGenerated = false;
     static #dragClassText = '\
     .dragClassKaRo { \
@@ -132,7 +133,6 @@ class Dragabble
             //clone.addEventListener('touchend',this.#mouseUpHandler);
             el.replaceWith(clone); //ersetze im DOM damit sind auch die listener weg
         }
-        Dragabble.#dragCounter++;
         this.#elements = store; //ersetze  die Liste
         //for (let el of this.#elements)
         //    el.classList.remove("dragClassKaRo");
@@ -156,8 +156,8 @@ class Dragabble
         JS anscheinend nicht
         if (--Dragabble.#dragCounter <= 0 )
         {  //letzer entfernt
-            document.removeEventListener("mouseup",Dragabble.globalMouseUpHandler);
-            document.removeEventListener("touchend",Dragabble.globalMouseUpHandler); //mal sehen, dürfte nicht stören
+            document.removeEventListener("mouseup",Dragabble.mouseUpHandler);
+            document.removeEventListener("touchend",Dragabble.mouseUpHandler); //mal sehen, dürfte nicht stören
         }
         */
     }
@@ -179,33 +179,36 @@ class Dragabble
                                 //damit ist this nicht das objekt auf dem der event ausgeloest wurde, sondern mein Objekt
         //ermittle das zugehörige Element
         //document.body.addEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false})
-        //document.body.addEventListener("pointerup",this.#globalMouseUpHandler);//,{once : true})//nur einmal
+        //document.body.addEventListener("pointerup",this.#mouseUpHandler);//,{once : true})//nur einmal
         //vorsicht, ein einfaches true heißt nicht false, sondern das der event in der capturing phase und nicht  in der bubbling phase agefangen wird
-        //document.addEventListener("touchend",this.#globalMouseUpHandler);//,{once : true})//nur einmal
-        for (const el of this.#elements)
-        {
-            if (el.contains(e.target)) //habe in ein oder auf das Listenelement geclickt
+        //document.addEventListener("touchend",this.#mouseUpHandler);//,{once : true})//nur einmal
+        if (!Dragabble.#draggingEle)
+        {//sonst aktiv 
+            for (const el of this.#elements)
             {
-                Dragabble.#draggingEle = el; //mal auf static gesetzt, ein aktuelles kann es nur eines geben
-                el.classList.add(Dragabble.#dragSelectedKaroClass);
-                const rect = el.getBoundingClientRect(); //x und y sind left und top, bezieht sich auf viewport
-                Dragabble.#width = rect.width;
-                Dragabble.#height = rect.height;
-                Dragabble.#placeHolder = el.cloneNode(false); //keine tiefe kopie
-                let ph = Dragabble.#placeHolder;
-                ph.style.width = Dragabble.#width + "px";
-                ph.style.height = Dragabble.#height + "px";
-                ph.classList.add(Dragabble.#placeHolderClass);
-                Dragabble.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
-                Dragabble.#deltaY = e.clientY - rect.y;
-                //document.body.addEventListener("pointermove",this.#mouseMoveHandler);
-                el.setPointerCapture(e.pointerId);
-                el.onpointermove = this.#mouseMoveHandler;
-                //el.addEventListener("pointermove",this.#mouseMoveHandler);
-                el.onpointerup = this.#globalMouseUpHandler;
-                //el.addEventListener("pointerup",this.#globalMouseUpHandler);
-                console.log("attach mousemove object has name " + this.#name)
-                break;
+                if (el.contains(e.target)) //habe in ein oder auf das Listenelement geclickt
+                {
+                    Dragabble.#draggingEle = el; //mal auf static gesetzt, ein aktuelles kann es nur eines geben
+                    el.classList.add(Dragabble.#dragSelectedKaroClass);
+                    const rect = el.getBoundingClientRect(); //x und y sind left und top, bezieht sich auf viewport
+                    Dragabble.#width = rect.width;
+                    Dragabble.#height = rect.height;
+                    Dragabble.#placeHolder = el.cloneNode(false); //keine tiefe kopie
+                    let ph = Dragabble.#placeHolder;
+                    ph.style.width = Dragabble.#width + "px";
+                    ph.style.height = Dragabble.#height + "px";
+                    ph.classList.add(Dragabble.#placeHolderClass);
+                    Dragabble.#deltaX = e.clientX - rect.x; //clientX Y  auch auf Viewport bezogen
+                    Dragabble.#deltaY = e.clientY - rect.y;
+                    //document.body.addEventListener("pointermove",this.#mouseMoveHandler);
+                    el.setPointerCapture(e.pointerId);
+                    el.onpointermove = this.#mouseMoveHandler;
+                    //el.addEventListener("pointermove",this.#mouseMoveHandler);
+                    el.onpointerup = this.#mouseUpHandler;
+                    //el.addEventListener("pointerup",this.#mouseUpHandler);
+                    console.log("attach mousemove object has name " + this.#name)
+                    break;
+                }
             }
         }
     }
@@ -253,7 +256,7 @@ class Dragabble
     }
 
     //umgestellt, im mouseUpHandler muss das Element einsortiert werden 
-    #globalMouseUpHandler = e => { 
+    #mouseUpHandler = e => { 
         console.log("in mouseuphandler object hast name " + this.#name)
         Dragabble.#previousTouch = null;
         if (Dragabble.#draggingEle != null)
@@ -271,7 +274,7 @@ class Dragabble
         //document.body.removeEventListener("pointermove",this.#mouseMoveHandler);
         Dragabble.#draggingEle = null;
         Dragabble.#placeHolder = null;
-        //document.body.removeEventListener("pointerup",this.#globalMouseUpHandler);
+        //document.body.removeEventListener("pointerup",this.#mouseUpHandler);
         //document.body.removeEventListener("touchmove",this.#disableDefaultTouchMove,{passive:false});
 
     }
