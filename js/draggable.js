@@ -79,6 +79,7 @@ class Dragabble
     .shiftSignKaRo {\
         font-size: 150%; \
         flex-basis: 5%; /*klein*/\
+        padding-right: 0.5em; \
     }\
     .shiftSignKaRo + div  { /*der nächste div ist ein flex-element */\
         flex-basis: 90%; /*nicht auf 100%, etwas Platz*/\
