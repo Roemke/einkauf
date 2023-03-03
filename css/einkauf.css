@@ -57,7 +57,7 @@ button {
     /*box-shadow: 0 .2rem .4rem gray;
     */
     color: rgb(220, 220, 221);
-    margin: 0rem 1rem;
+    margin: 0rem 0rem 0rem 0.5rem;
     font-size: 95%;
 }
 #bSave.changed::after {

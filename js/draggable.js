@@ -222,8 +222,10 @@ class Dragabble
         if (el != null) //hatte hier manchmal null - warum?
         {
             //position absolte kann die Breite ändern, höhe eigentlich nicht, aber nehme es mal dazu
-            el.style.width = Dragabble.#width+"px";
-            el.style.height = Dragabble.#height+"px";
+            //interessant, passiert nicht mehr, aber wenn ich es so mache habe ich leichte abweichungen in der Höhe 
+            //daher nehme ich es heraus
+            //el.style.width = Dragabble.#width+"px";
+            //el.style.height = Dragabble.#height+"px";
             //console.log("style top: "+ el.style.top)
 
             if (!Dragabble.#placeHolderInserted)
@@ -237,16 +239,21 @@ class Dragabble
             //aufpassen, das element bleibt an der position in der liste, nur die position auf dem Bildschirm
             //ändert sich, daher next und prev nötig
             let next = (ph.nextElementSibling == el) ? el.nextElementSibling : ph.nextElementSibling;
-            if(e.movementY > 0 //nach unten
-                && next //ein nachfolger unter dem platzhalter ist da
+            let prev = (ph.previousElementSibling == el) ? el.previousElementSibling : ph.previousElementSibling;
+
+            //console.log(`Movement x ${e.movementX} and Movement y ${e.movementY}`);
+
+            //firefox on android does not have negative values for movementY, chrome has, on desktop both has ...
+            //but it should be enough to check the position with isAbove
+            //if(e.movementY > 0 //nach unten
+            if ( next //ein nachfolger unter dem platzhalter ist da
                 && this.#myListContains(next) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( next, el))//el unter dem nächsten unterhalb des Plathalters
             {
                 Dragabble.#swap(ph, next);
             }
-            let prev = (ph.previousElementSibling == el) ? el.previousElementSibling : ph.previousElementSibling;
-            if(e.movementY < 0 //nach oben
-                &&  prev
+            //if(e.movementY < 0 //nach oben
+            else if(  prev
                 && this.#myListContains(prev) //Bedingung, dass der nächste auch zu meiner Liste gehört
                 &&  Dragabble.#isAbove( el, prev))//el über dem vorigen oberhalb des Plathalters
             {
